@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: smarthouse
+  #  liquibase:
+  #    liquibase-schema: liquibase
+  #    change-log: classpath:db/changelog.xml
+  jpa:
+    hibernate:
+      ddl-auto: create
+    database: postgresql
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  datasource:
+    url: jdbc:postgresql://185.212.128.246:5432/smarthouse
+    driver-class-name: org.postgresql.Driver
+    username: guessword
+    password: guessword<G13
