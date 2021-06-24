@@ -50,6 +50,7 @@ avwx:
   token: W2pxukczIQFQ4cFZDbRcHpwleKO76osWaQ5LsngVlDo
   chernivtsi-icao: UKLN
   seattle-icao: KSEA
+  miami-icao: KMIA
   metar-receiving-cron: 0 */2 * * * *
 
 time:
