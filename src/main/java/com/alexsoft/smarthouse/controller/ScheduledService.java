@@ -43,6 +43,9 @@ public class ScheduledService {
         List<String> referenceSensors = List.of("935-CORKWOOD-MB","935-CORKWOOD-LR","935-CORKWOOD-B");
         LocalDateTime averagingStartDateTime = dateUtils.getLocalDateTime().minus(AVERAGING_PERIOD);
         List<IndicationV2> indications = indicationRepositoryV2.findByIndicationPlaceInAndLocalTimeIsAfter(referenceSensors, averagingStartDateTime);
+        if (indications.isEmpty()){
+            return;
+        }
         Double averageTemp = indications.stream().filter(ind -> referenceSensors.contains(ind.getIndicationPlace())).mapToDouble(i -> i.getTemperature()
                 .getValue().doubleValue()).average().orElseThrow();
         Double averageAh = indications.stream().filter(ind -> referenceSensors.contains(ind.getIndicationPlace())).mapToDouble(i -> i.getAbsoluteHumidity()
