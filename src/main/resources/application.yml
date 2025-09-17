@@ -52,7 +52,7 @@ avwx:
   baseUri: https://avwx.rest/api
   metarSubUri: /metar/{ICAO}?options=&airport=true&reporting=true&format=json&onfail=cache
   token: W2pxukczIQFQ4cFZDbRcHpwleKO76osWaQ5LsngVlDo
-  metar-receiving-cron: 0 */1 * * * *
+  metar-receiving-cron: 0 */30 * * * *
 
 flightradar24:
   baseUri: https://fr24api.flightradar24.com
