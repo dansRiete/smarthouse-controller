@@ -1,6 +1,6 @@
 CREATE TABLE hour_change_tracker (
                                      id SERIAL PRIMARY KEY,
-                                     previous_hour INT NOT NULL,
+                                     previous_hour INT,
                                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
