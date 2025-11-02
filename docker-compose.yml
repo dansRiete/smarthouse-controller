@@ -42,7 +42,7 @@ services:
       - "8086:8086" # InfluxDB HTTP API
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup                           # Setup mode
-      - INFLUXDB_ADMIN_TOKEN=asdf==
+      - INFLUXDB_ADMIN_TOKEN=2xYlhotvYM8Gqd28aF4edw6lH64EgUoxVGVaWB7oFg00qnxKCcxdtHQ2v5sOpaBAi3AYGxkqvlaRr2_9NE7AIg==
     volumes:
       - /home/alexkzk/influxdb_data:/var/lib/influxdb2            # Persistent storage
     restart: unless-stopped
