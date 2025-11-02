@@ -42,7 +42,11 @@ services:
       - "8086:8086" # InfluxDB HTTP API
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup                           # Setup mode
-      - INFLUXDB_ADMIN_TOKEN=2xYlhotvYM8Gqd28aF4edw6lH64EgUoxVGVaWB7oFg00qnxKCcxdtHQ2v5sOpaBAi3AYGxkqvlaRr2_9NE7AIg==
+      - DOCKER_INFLUXDB_INIT_USERNAME=alexkzk                      # Admin username
+      - DOCKER_INFLUXDB_INIT_PASSWORD=dHf%6*7G              # Admin password
+      - DOCKER_INFLUXDB_INIT_ORG=Home                            # Organization
+      - DOCKER_INFLUXDB_INIT_BUCKET=smarthouse-bucket             # Default bucket
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=2xYlhotvYM8Gqd28aF4edw6lH64EgUoxVGVaWB7oFg00qnxKCcxdtHQ2v5sOpaBAi3AYGxkqvlaRr2_9NE7AIg==        # Auth token
     volumes:
       - /home/alexkzk/influxdb_data:/var/lib/influxdb2            # Persistent storage
     restart: unless-stopped
