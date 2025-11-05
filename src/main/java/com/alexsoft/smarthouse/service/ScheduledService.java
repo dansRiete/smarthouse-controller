@@ -68,7 +68,7 @@ public class ScheduledService {
         /*messageSenderService.sendMessage(measurementTopic,
                 ("{\"publisherId\": \"i7-4770k\", \"measurePlace\": \"935-CORKWOOD-TREND%d\", \"inOut\": \"IN\", \"air\":"
                         + " {\"temp\": {\"" + celsius + "\": %.3f}}}").formatted(minutes, trend));*/
-        indicationServiceV3.save(IndicationV3.builder().locationId("935-CORKWOOD-TREND%d").localTime(dateUtils.getLocalDateTime()).utcTime(dateUtils.getUtc())
+        indicationServiceV3.save(IndicationV3.builder().locationId("935-CORKWOOD-TREND%d".formatted(minutes)).localTime(dateUtils.getLocalDateTime()).utcTime(dateUtils.getUtc())
                 .publisherId("i7-4770k").measurementType(measurementType.equals("ah") ? "ah" : "temp").value(trend).build());
     }
 
