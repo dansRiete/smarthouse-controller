@@ -205,7 +205,7 @@ public class ApplianceService {
         }
 
         if (appliance.getCode().equals("AC")) {
-            indicationRepositoryV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
+            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
                     .locationId("935-CORKWOOD-AC").value((double) (appliance.getState() == ON ? 1 : 0)).build());
         }
     }
