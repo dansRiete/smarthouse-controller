@@ -225,9 +225,16 @@ public class ApplianceService {
                                 .locationId("935-CORKWOOD-FAN").value(0.0).build());
                     }
                 } else {
-                    messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("FAN", "off"));
-                    indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
-                            .locationId("935-CORKWOOD-FAN").value(0.0).build());
+                    if (List.of(55,56,57,58,59).contains(now.getMinute())) {
+                        messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("FAN", "on"));
+                        indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
+                                .locationId("935-CORKWOOD-FAN").value(1.0).build());
+                    } else {
+                        messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("FAN", "off"));
+                        indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
+                                .locationId("935-CORKWOOD-FAN").value(0.0).build());
+
+                    }
                 }
             }
         } else {
