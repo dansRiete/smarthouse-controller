@@ -226,16 +226,16 @@ public class ApplianceService {
                         messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("AC", "on"));
                         indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
                                 .locationId("935-CORKWOOD-AC").value(1.0).build());
-                    } else {
+                    } /*else {
                         messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("AC", "off"));
                         indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
                                 .locationId("935-CORKWOOD-AC").value(0.0).build());
-                    }
-                } else {
+                    }*/
+                } /*else {
                     messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}".formatted("AC", "off"));
                     indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
                             .locationId("935-CORKWOOD-AC").value(0.0).build());
-                }
+                }*/
             }
         } else {
             if (appliance.getCode().equals("AC") && appliance.getState() == OFF && acNeedsToBeTurnedOn) {
