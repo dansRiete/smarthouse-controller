@@ -128,11 +128,11 @@ public class ApplianceService {
                         if (appliance.getCode().equals("AC") && Boolean.TRUE.equals(appliance.getInverted())) {
                             // AC Heating mode
                             if (average < appliance.getSetting() - appliance.getHysteresis()) {
-                                logPwrControlDecision(appliance, ON, average, utc);
+                                if (appliance.getState() != ON) logPwrControlDecision(appliance, ON, average, utc);
                                 applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
                                 return;
                             } else if (average > appliance.getSetting() + appliance.getHysteresis()) {
-                                logPwrControlDecision(appliance, OFF, average, utc);
+                                if (appliance.getState() != OFF) logPwrControlDecision(appliance, OFF, average, utc);
                                 applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
                                 return;
                             }
@@ -140,11 +140,11 @@ public class ApplianceService {
                             boolean onCondition = average > appliance.getSetting() + appliance.getHysteresis();
                             boolean offCondition = average < appliance.getSetting() - (appliance.getHysteresis() + (appliance.getCode().equals("AC") ? 0.5 : 0));
                             if (Boolean.TRUE.equals(appliance.getInverted()) ? !onCondition : onCondition) {
-                                logPwrControlDecision(appliance, ON, average, utc);
+                                if (appliance.getState() != ON) logPwrControlDecision(appliance, ON, average, utc);
                                 applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
                                 return;
                             } else if (Boolean.TRUE.equals(appliance.getInverted()) ? !offCondition : offCondition) {
-                                logPwrControlDecision(appliance, OFF, average, utc);
+                                if (appliance.getState() != OFF) logPwrControlDecision(appliance, OFF, average, utc);
                                 applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
                                 return;
                             }
