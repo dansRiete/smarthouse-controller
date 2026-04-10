@@ -31,6 +31,17 @@ based on previously saved data.
 - Maven
 - Liquibase
 
+### Checking out the whole project
+
+```bash
+mkdir smarthouse-newgen && cd smarthouse-newgen && \
+git clone git@github.com:smarthouse-newgen/smarthouse-ac-controller.git && \
+git clone git@github.com:smarthouse-newgen/smarthouse-android.git && \
+git clone git@github.com:smarthouse-newgen/smarthouse-controller.git && \
+git clone git@github.com:smarthouse-newgen/smarthouse-lr-sensor.git && \
+git clone git@github.com:smarthouse-newgen/smarthouse-mb-sensor.git
+```
+
 ### Building and running the app
 You'll need JDK and Maven installed for next steps
 
