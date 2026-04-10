@@ -142,12 +142,41 @@ Base path: `/appliances`
 
 ## Scheduled Jobs
 
+Two thread pools handle scheduled work:
+
+- **Scheduler pool** (`SchedulingConfig`, 3 threads) — critical fast tasks only. Configured via `SchedulingConfig` which also sets a full-stack-trace error handler replacing Spring's default silent logger.
+- **IO task executor** (`AsyncConfig`, 5 threads, prefix `io-task-`) — all I/O-heavy and DB-heavy tasks via `@Async("ioTaskExecutor")`. Scheduler thread returns immediately and is never blocked by external calls.
+
+### Scheduler pool — critical tasks
+
+| Schedule | Method | Thread pool |
+|---|---|---|
+| Every 10s (`0/10 * * * * ?`) | `ScheduledService.powerControl()` | scheduler |
+| Every 3s (`*/3 * * * * *`) | `ScheduledService.calculateTrends()` | scheduler |
+| Every 1s (`fixedDelay=1000`) | `AstroEventPublisher.detectHourChange()` | scheduler |
+| Every 60s (`fixedDelay=60000`) | `AstroEventPublisher.detectSunset()` | scheduler |
+| Every 60s (`fixedDelay=60000`) | `AstroEventPublisher.detectSunrise()` | scheduler |
+
+### IO task executor — async tasks
+
 | Schedule | Method | Description |
 |---|---|---|
-| Every 10s | `ScheduledService.powerControl()` | Runs power control for all appliances |
-| Every 3s | `ScheduledService.calculateTrends()` | Calculates 1-min and 5-min trends for temp/humidity at MB and LR sensors |
-| Every 1s | `AstroEventPublisher.detectHourChange()` | Fires `HourChangedEvent`, triggers turn-off-hours group rules |
-| Every 60s | `AstroEventPublisher.detectSunset()` | Fires `SunsetEvent` when sunset occurs |
+| Every 1min (`0 */1 * * * *`) | `MetarService.retrieveAndProcessAircraftNumber()` | Fetches aircraft count in FXE area from airplanes.live |
+| Every 30min (`0 */30 * * * *`) | `MetarService.retrieveAndProcessMetarData()` | Fetches METAR for ~25 airports in parallel (5 threads), saves weather data |
+| Every 5min (`0 */5 * * * *`) | `MetarService.aggregateMinutely()` | DB aggregation over last 5 minutes |
+| Every 1h (`0 0 */1 * * *`) | `MetarService.aggregateHourly()` | DB aggregation over last hour |
+| Every 1h (`0 0 */1 * * *`) | `MetarService.retrieveAndProcessWeatherApi()` | Fetches forecast from WeatherAPI for 1/3/7/13 days ahead |
+| Daily at 22:00 (`0 0 22 * * *`) | `MetarService.aggregateDaily()` | DB aggregation over last day |
+| Monthly (`0 0 0 1 * *`) | `MetarService.aggregateMonthly()` | DB aggregation over last month |
+| Every 60s (`fixedDelay=60000`) | `BtcService.getBtcRate()` | Fetches BTC/USD price from CoinGecko, saves to `btc` table and `indication` |
+
+### Timeouts
+
+| Client | Connect | Read/Block |
+|---|---|---|
+| `MetarService` RestTemplate (AVWX, airplanes.live) | 5s | 10s |
+| `BtcService` WebClient (CoinGecko) | — | 10s (`block()`) |
+| MQTT outbound handler | — | 5s (`completionTimeout`) |
 
 ## DB Migration Scripts
 
