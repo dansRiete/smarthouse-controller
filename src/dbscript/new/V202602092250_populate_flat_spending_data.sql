@@ -1,0 +1,77 @@
+-- Populate flat spending report table with data from various statements
+INSERT INTO finance.spending_report (card_number, card_name, transaction_date, amount, description, category, subcategory, filename, original_amount) VALUES
+-- BoA/9573/eStmt_2025-12-17.pdf
+('9573', 'BoA/9573', '2025-11-28', -37.43, 'THE HOME DEPOT #6310   HOLLYWOOD FL', 'Shopping', NULL, 'eStmt_2025-12-17.pdf', 37.43),
+
+-- BoA/3401/eStmt_2026-02-07.pdf
+('3401', 'BoA/3401', '2026-01-23', 1800.00, 'PAYMENT - THANK YOU', 'Payment', NULL, 'eStmt_2026-02-07.pdf', 1800.00),
+('3401', 'BoA/3401', '2026-01-07', -10.00, 'JetBrains Americas INC 165-05772345 CA', 'Subscription', NULL, 'eStmt_2026-02-07.pdf', 10.00),
+('3401', 'BoA/3401', '2026-01-16', -106.69, 'WILD FORK FOODS - AVENTURAVENTURA      FL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 106.69),
+('3401', 'BoA/3401', '2026-01-16', -76.96, 'TOTAL WINE AND MORE        MIAMI    FL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 76.96),
+('3401', 'BoA/3401', '2026-01-19', -59.60, 'NEWSTAR DENTAL          FORT LAUDERDAFL', 'Health', NULL, 'eStmt_2026-02-07.pdf', 59.60),
+('3401', 'BoA/3401', '2026-01-27', -3.95, 'COH PRKING PAY BY PHONE 954-921-3266 FL', 'Transportation', NULL, 'eStmt_2026-02-07.pdf', 3.95),
+('3401', 'BoA/3401', '2026-01-27', -70.75, 'HOLLYWOOD BREWERY          HOLLYWOOD FL', 'Dining Out', NULL, 'eStmt_2026-02-07.pdf', 70.75),
+('3401', 'BoA/3401', '2026-01-30', -95.14, 'TOTAL WINE & MORE 9       FT LAUDERDALEFL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 95.14),
+('3401', 'BoA/3401', '2026-01-31', -10.44, 'COSTCO WHSE #0091        DAVIE    FL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 10.44),
+('3401', 'BoA/3401', '2026-01-31', -286.76, 'COSTCO WHSE #0091        DAVIE    FL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 286.76),
+('3401', 'BoA/3401', '2026-01-31', -19.56, 'PUBLIX #1554          HOLLYWOOD FL', 'Groceries', NULL, 'eStmt_2026-02-07.pdf', 19.56),
+('3401', 'BoA/3401', '2026-02-01', -3.15, 'COH PRKING PAY BY PHONE 954-921-3266 FL', 'Transportation', NULL, 'eStmt_2026-02-07.pdf', 3.15),
+('3401', 'BoA/3401', '2026-02-07', -24.68, 'INTEREST CHARGED ON PURCHASES', 'Fees & Interest', NULL, 'eStmt_2026-02-07.pdf', 24.68),
+
+-- Amazon/2026-01-21.pdf
+('5975', 'Amazon', '2025-12-23', 96.41, 'ONLINE PYMT-THANK YOU ATLANTA               GA', 'Payment', NULL, '2026-01-21.pdf', 96.41),
+('5975', 'Amazon', '2025-12-26', 3.38, 'AMAZON DIGITAL SEATTLE WA', 'Subscription', NULL, '2026-01-21.pdf', 3.38),
+('5975', 'Amazon', '2025-12-23', -28.86, 'AMAZON MARKETPLACE SEATTLE WA (Zellie''s)', 'Shopping', NULL, '2026-01-21.pdf', 28.86),
+('5975', 'Amazon', '2025-12-24', -3.38, 'AMAZON DIGITAL SEATTLE WA', 'Subscription', NULL, '2026-01-21.pdf', 3.38),
+
+-- Discover/Discover-Statement-20260206-1437.pdf
+('1437', 'Discover', '2026-01-15', 35.00, 'INTERNET PAYMENT - THANK YOU', 'Payment', NULL, 'Discover-Statement-20260206-1437.pdf', 35.00),
+('1437', 'Discover', '2026-01-23', 407.00, 'INTERNET PAYMENT - THANK YOU', 'Payment', NULL, 'Discover-Statement-20260206-1437.pdf', 407.00),
+('1437', 'Discover', '2026-02-02', 150.00, 'INTERNET PAYMENT - THANK YOU', 'Payment', NULL, 'Discover-Statement-20260206-1437.pdf', 150.00),
+('1437', 'Discover', '2026-01-10', -19.99, 'ROBLOX 1.888.858.2569 8888582569 CA', 'Entertainment', NULL, 'Discover-Statement-20260206-1437.pdf', 19.99),
+('1437', 'Discover', '2026-01-10', -87.28, 'ATT*BILL PAYMENT 800-288-2020 TX', 'Utilities', NULL, 'Discover-Statement-20260206-1437.pdf', 87.28),
+('1437', 'Discover', '2026-01-12', -11.99, 'JOTTACLOUD 34328257 21042900 NOR', 'Subscription', NULL, 'Discover-Statement-20260206-1437.pdf', 11.99),
+('1437', 'Discover', '2026-01-13', -247.15, 'GEICO *AUTO 800-841-3000 DC', 'Utilities', NULL, 'Discover-Statement-20260206-1437.pdf', 247.15),
+('1437', 'Discover', '2026-01-16', -11.99, 'ADOBE SAN JOSE CA', 'Subscription', NULL, 'Discover-Statement-20260206-1437.pdf', 11.99),
+('1437', 'Discover', '2026-01-17', -108.63, 'GOOGLE FI 4STPMJ GOOGLE.COM CA', 'Utilities', NULL, 'Discover-Statement-20260206-1437.pdf', 108.63),
+('1437', 'Discover', '2026-01-19', -10.49, 'NET COST MARKET HOLLYWOOD FL', 'Groceries', NULL, 'Discover-Statement-20260206-1437.pdf', 10.49),
+('1437', 'Discover', '2026-01-19', -27.27, 'NET COST MARKET HOLLYWOOD FL', 'Groceries', NULL, 'Discover-Statement-20260206-1437.pdf', 27.27),
+('1437', 'Discover', '2026-01-21', -17.49, 'PLAYSTATIONNETWORK SAN MATEO CA', 'Entertainment', NULL, 'Discover-Statement-20260206-1437.pdf', 17.49),
+('1437', 'Discover', '2026-01-22', -3.99, '1PASSWORD 8668127277 CAN', 'Subscription', NULL, 'Discover-Statement-20260206-1437.pdf', 3.99),
+('1437', 'Discover', '2026-02-02', -1.49, 'GOOGLE *FLIGHTRADAR24', 'Subscription', NULL, 'Discover-Statement-20260206-1437.pdf', 1.49),
+
+-- Capital/Alex/Savor/Statement_012026_8819.pdf
+('8819', 'Capital/Alex/Savor', '2026-01-04', 200.00, 'CAPITAL ONE ONLINE PYMT', 'Payment', NULL, 'Statement_012026_8819.pdf', 200.00),
+('8819', 'Capital/Alex/Savor', '2026-01-04', 253.00, 'CAPITAL ONE ONLINE PYMT', 'Payment', NULL, 'Statement_012026_8819.pdf', 253.00),
+('8819', 'Capital/Alex/Savor', '2026-01-15', 505.40, 'CAPITAL ONE ONLINE PYMT', 'Payment', NULL, 'Statement_012026_8819.pdf', 505.40),
+('8819', 'Capital/Alex/Savor', '2025-12-27', -8.00, 'WIFIONBOARD ALASKACHICAGOIL', 'Subscription', NULL, 'Statement_012026_8819.pdf', 8.00),
+('8819', 'Capital/Alex/Savor', '2025-12-27', -17.50, 'RESIDENCE INN WENATCHEWENATCHEEWA', 'Travel', NULL, 'Statement_012026_8819.pdf', 17.50),
+('8819', 'Capital/Alex/Savor', '2025-12-27', -3.99, 'PY *SERGIOSMIAMIFL', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 3.99),
+('8819', 'Capital/Alex/Savor', '2025-12-29', -34.50, 'ALASKA AIR IN FLIGHTSEATACWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 34.50),
+('8819', 'Capital/Alex/Savor', '2025-12-29', -2.00, 'CTLP*CHARACTERS UNLIMIBOULDERCITYNV', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 2.00),
+('8819', 'Capital/Alex/Savor', '2025-12-29', -15.17, 'STARBUCKS #71537NORTH BENDWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 15.17),
+('8819', 'Capital/Alex/Savor', '2025-12-29', -52.03, 'LUKE''S LOBSTER - PIKESEATTLEWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 52.03),
+('8819', 'Capital/Alex/Savor', '2025-12-29', -22.09, 'JACK''S FISH SPOTSEATTLEWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 22.09),
+('8819', 'Capital/Alex/Savor', '2026-01-02', -14.29, 'BULLWHEEL REST CRYSTALENUMCLAWWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 14.29),
+('8819', 'Capital/Alex/Savor', '2026-01-03', -31.88, 'PIKE&PINE ST2275SEATTLEWA', 'Shopping', NULL, 'Statement_012026_8819.pdf', 31.88),
+('8819', 'Capital/Alex/Savor', '2026-01-03', -79.00, 'THE MUSEUM OF FLIGHT MTUKWILAWA', 'Entertainment', NULL, 'Statement_012026_8819.pdf', 79.00),
+('8819', 'Capital/Alex/Savor', '2026-01-03', -20.00, 'THE MUSEUM OF FLIGHT MTUKWILAWA', 'Entertainment', NULL, 'Statement_012026_8819.pdf', 20.00),
+('8819', 'Capital/Alex/Savor', '2026-01-03', -92.67, 'AIRPORT CONCESSIONS NWSEATTLEWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 92.67),
+('8819', 'Capital/Alex/Savor', '2026-01-04', -17.25, 'ALASKA AIR* QC52WGQA8SEATTLEWA', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 17.25),
+('8819', 'Capital/Alex/Savor', '2026-01-04', -200.54, 'CITY OF HOLLYWOOD9549213938FL', 'Utilities', NULL, 'Statement_012026_8819.pdf', 200.54),
+('8819', 'Capital/Alex/Savor', '2026-01-06', -30.11, 'PUBLIX #1554HOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 30.11),
+('8819', 'Capital/Alex/Savor', '2026-01-08', -182.25, 'WAL-MART #1996HALLANDALEFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 182.25),
+('8819', 'Capital/Alex/Savor', '2026-01-08', -56.28, 'EUROPA GOURMETHOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 56.28),
+('8819', 'Capital/Alex/Savor', '2026-01-09', -3.99, 'PUBLIX #1554HOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 3.99),
+('8819', 'Capital/Alex/Savor', '2026-01-10', -7.93, 'TST* FARMER''S MILKHOLLYWOODFL', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 7.93),
+('8819', 'Capital/Alex/Savor', '2026-01-11', -6.00, 'NIC*-DEP MIZELL-JOHNSODANIAFL', 'Shopping', NULL, 'Statement_012026_8819.pdf', 6.00),
+('8819', 'Capital/Alex/Savor', '2026-01-14', -19.79, 'PUBLIX #1554HOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 19.79),
+('8819', 'Capital/Alex/Savor', '2026-01-16', -66.17, 'PUBLIX #1554HOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 66.17),
+('8819', 'Capital/Alex/Savor', '2026-01-17', -7.07, 'TST* FARMER''S MILKHOLLYWOODFL', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 7.07),
+('8819', 'Capital/Alex/Savor', '2026-01-23', -233.87, 'Europcar.com/us USD prVoisins-Le-BrFRA', 'Travel', NULL, 'Statement_012026_8819.pdf', 233.87),
+('8819', 'Capital/Alex/Savor', '2026-01-24', -6.95, 'TST* FARMER''S MILKHOLLYWOODFL', 'Dining Out', NULL, 'Statement_012026_8819.pdf', 6.95),
+('8819', 'Capital/Alex/Savor', '2026-01-27', -30.92, 'EUROPA GOURMETHOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_8819.pdf', 30.92),
+
+-- Capital/Alex/Quicksilver/Statement_012026_6487.pdf
+('6487', 'Capital/Alex/Quicksilver', '2026-01-10', 64.20, 'CAPITAL ONE MOBILE PYMT', 'Payment', NULL, 'Statement_012026_6487.pdf', 64.20),
+('6487', 'Capital/Alex/Quicksilver', '2025-12-20', -14.20, 'PUBLIX #1554HOLLYWOODFL', 'Groceries', NULL, 'Statement_012026_6487.pdf', 14.20);
