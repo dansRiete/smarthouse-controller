@@ -129,11 +129,11 @@ public class ApplianceService {
                             // AC Heating mode
                             if (average < appliance.getSetting() - appliance.getHysteresis()) {
                                 logPwrControlDecision(appliance, ON, average, utc);
-                                applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
+                                if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
                                 return;
                             } else if (average > appliance.getSetting() + appliance.getHysteresis()) {
                                 logPwrControlDecision(appliance, OFF, average, utc);
-                                applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
+                                if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
                                 return;
                             }
                         } else {
@@ -141,11 +141,11 @@ public class ApplianceService {
                             boolean offCondition = average < appliance.getSetting() - (appliance.getHysteresis() + (appliance.getCode().equals("AC") ? 0.5 : 0));
                             if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
                                 logPwrControlDecision(appliance, ON, average, utc);
-                                applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
+                                if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
                                 return;
                             } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
                                 logPwrControlDecision(appliance, OFF, average, utc);
-                                applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
+                                if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
                                 return;
                             }
                         }

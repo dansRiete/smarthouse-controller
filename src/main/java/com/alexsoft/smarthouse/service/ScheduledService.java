@@ -34,7 +34,6 @@ public class ScheduledService {
     private String measurementTopic;
 
     @Scheduled(cron = "0/10 * * * * ?")
-    @Transactional
     public void powerControl() {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
