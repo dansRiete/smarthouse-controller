@@ -149,7 +149,7 @@ public class ApplianceFacade {
         }
 
         if (appliance.getCode().equals("AC")) {
-            double coolingSetpoint = appliance.getState() == ON ? 23.0 : 25.0;
+            double coolingSetpoint = appliance.getState() == ON ? 23.0 : 26.0;
             messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
                     "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
             indicationRepositoryV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
@@ -160,7 +160,7 @@ public class ApplianceFacade {
     @Transactional
     public void sendAcState() {
         Appliance ac = applianceRepository.findById("AC").orElseThrow();
-        double coolingSetpoint = ac.getState() == ON ? 23.0 : 25.0;
+        double coolingSetpoint = ac.getState() == ON ? 23.0 : 26.0;
         messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
                 "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
     }
