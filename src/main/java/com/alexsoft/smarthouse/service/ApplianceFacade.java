@@ -7,6 +7,7 @@ import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.ApplianceRepository;
 import com.alexsoft.smarthouse.repository.EventRepository;
 import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,9 +149,20 @@ public class ApplianceFacade {
         }
 
         if (appliance.getCode().equals("AC")) {
+            double coolingSetpoint = appliance.getState() == ON ? 23.0 : 25.0;
+            messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
+                    "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
             indicationRepositoryV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
                     .locationId("935-CORKWOOD-AC").value((double) (appliance.getState() == ON ? 1 : 0)).build());
         }
+    }
+
+    @Transactional
+    public void sendAcState() {
+        Appliance ac = applianceRepository.findById("AC").orElseThrow();
+        double coolingSetpoint = ac.getState() == ON ? 23.0 : 25.0;
+        messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
+                "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
     }
 
 }

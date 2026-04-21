@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,13 +36,18 @@ public class ApplianceController {
 
     @GetMapping
     public ResponseEntity<List<Appliance>> getAllAppliances(@RequestParam(required = false) String requesterId) {
+        Map<String, Object> eventData = new HashMap<>();
+        if (requesterId != null) eventData.put("requesterId", requesterId);
+        eventRepository.save(Event.builder().utcTime(getUtc()).type("http.request").device(null).data(eventData).build());
         List<Appliance> appliances = applianceService.getAllAppliances(requesterId);
         return ResponseEntity.ok(appliances);
     }
 
     @PatchMapping("/{applianceCode}")
     @Transactional
-    public ResponseEntity<Appliance> partiallyUpdateAppliance(@PathVariable String applianceCode, @RequestBody Map<String, Object> updates) {
+    public ResponseEntity<Appliance> partiallyUpdateAppliance(@PathVariable String applianceCode,
+                                                               @RequestBody Map<String, Object> updates,
+                                                               @RequestParam(required = false) String requesterId) {
         return applianceService.getApplianceByCode(applianceCode).map(appliance -> {
             updates.forEach((key, value) -> {
                 switch (key) {
@@ -63,14 +69,15 @@ public class ApplianceController {
                         appliance.setLocked(locked);
                         eventRepository.save(Event.builder().utcTime(getUtc())
                                 .type("http.locked").device(applianceCode)
-                                .data(Map.of("locked", locked)).build());
+                                .data(dataWithRequester(Map.of("locked", locked), requesterId)).build());
                         break;
                     case "lockedUntil":
                         String lockedUntil = (String) value;
                         if (lockedUntil.equals("null")) {
                             appliance.setLockedUntilUtc(null);
                             eventRepository.save(Event.builder().utcTime(getUtc())
-                                    .type("http.lockedUntil.cleared").device(applianceCode).build());
+                                    .type("http.lockedUntil.cleared").device(applianceCode)
+                                    .data(dataWithRequester(Map.of(), requesterId)).build());
                         } else {
                             LocalDateTime selectedLockedUntil = LocalDateTime.parse(lockedUntil, DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"));
                             LocalDateTime previousLock = appliance.getLockedUntilUtc();
@@ -82,7 +89,7 @@ public class ApplianceController {
                             }
                             eventRepository.save(Event.builder().utcTime(getUtc())
                                     .type("http.lockedUntil").device(applianceCode)
-                                    .data(Map.of("requested", lockedUntil, "previous", String.valueOf(previousLock), "result", appliance.getLockedUntilUtc().toString())).build());
+                                    .data(dataWithRequester(Map.of("requested", lockedUntil, "previous", String.valueOf(previousLock), "result", appliance.getLockedUntilUtc().toString()), requesterId)).build());
                         }
                         break;
                     case "setting":
@@ -106,6 +113,13 @@ public class ApplianceController {
                         throw new IllegalArgumentException(errorMessage);
                 }
             });
+
+            Map<String, Object> eventData = new HashMap<>(updates);
+            if (updates.containsKey("setting") && ("+".equals(updates.get("setting")) || "-".equals(updates.get("setting")))){
+                eventData.put("settingValue", appliance.getSetting());
+            }
+            if (requesterId != null) eventData.put("requesterId", requesterId);
+            eventRepository.save(Event.builder().utcTime(getUtc()).type("http.request").device(applianceCode).data(eventData).build());
 
             Appliance updatedAppliance = applianceService.saveOrUpdateAppliance(appliance);
             postCommitPowerControl(applianceCode);
@@ -134,6 +148,13 @@ public class ApplianceController {
 
     private static double roundToNearestHalf(double value) {
         return Math.round(value * 4) / 4.0;
+    }
+
+    private static Map<String, Object> dataWithRequester(Map<String, Object> base, String requesterId) {
+        if (requesterId == null) return base;
+        Map<String, Object> data = new HashMap<>(base);
+        data.put("requesterId", requesterId);
+        return data;
     }
 
 
