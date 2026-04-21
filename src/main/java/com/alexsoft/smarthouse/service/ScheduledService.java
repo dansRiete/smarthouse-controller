@@ -27,6 +27,7 @@ public class ScheduledService {
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
     private final ApplianceService applianceService;
+    private final ApplianceFacade applianceFacade;
     private final IndicationRepositoryV3 indicationRepositoryV3;
     private final IndicationServiceV3 indicationServiceV3;
 
@@ -36,6 +37,11 @@ public class ScheduledService {
     @Scheduled(cron = "0/10 * * * * ?")
     public void powerControl() {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
+    }
+
+    @Scheduled(cron = "0/30 * * * * ?")
+    public void sendAcState() {
+        applianceFacade.sendAcState();
     }
 
     @Scheduled(cron = "*/3 * * * * *")
