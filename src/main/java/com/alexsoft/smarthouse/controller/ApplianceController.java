@@ -101,8 +101,11 @@ public class ApplianceController {
                             appliance.setSetting(Double.valueOf(value.toString()));
                         }
                         break;
-                    case "hysteresis":
-                        appliance.setHysteresis(Double.valueOf(value.toString()));
+                    case "hysteresisOn":
+                        appliance.setHysteresisOn(Double.valueOf(value.toString()));
+                        break;
+                    case "hysteresisOff":
+                        appliance.setHysteresisOff(Double.valueOf(value.toString()));
                         break;
                     case "referenceSensors":
                         appliance.setReferenceSensors((List<String>) value);
