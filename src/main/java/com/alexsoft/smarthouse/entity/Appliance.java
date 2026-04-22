@@ -46,7 +46,8 @@ public class Appliance {
     private Double actual;
     private String metricType;
     private String units;
-    private Double hysteresis;
+    private Double hysteresisOn;
+    private Double hysteresisOff;
     @Convert(converter = StringListConverter.class)
     private List<String> referenceSensors;
     private String measurementType;
@@ -97,8 +98,12 @@ public class Appliance {
         return "\u001B[" + color + "m%s\u001B[0m".formatted(getState());
     }
 
-    public Double getHysteresis() {
-        return getScheduledOrCurrentSetting(1, hysteresis);
+    public Double getHysteresisOn() {
+        return getScheduledOrCurrentSetting(1, hysteresisOn);
+    }
+
+    public Double getHysteresisOff() {
+        return hysteresisOff;
     }
 
     public Double determineScheduledSetting() {

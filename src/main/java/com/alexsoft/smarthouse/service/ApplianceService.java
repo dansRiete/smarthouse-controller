@@ -74,8 +74,8 @@ public class ApplianceService {
             if (averageOptional.isPresent()) {
                 double average = averageOptional.getAsDouble();
                 appliance.setActual(average);
-                LOGGER.info("pwr-control for {} executed, avg: {}, setting: {}, hysteresis: {}",
-                        appliance.getCode(), average, appliance.getSetting(), appliance.getHysteresis());
+                LOGGER.info("pwr-control for {} executed, avg: {}, setting: {}, hysteresisOn: {}, hysteresisOff: {}",
+                        appliance.getCode(), average, appliance.getSetting(), appliance.getHysteresisOn(), appliance.getHysteresisOff());
 
                 sendAvgMessage(appliance, average, utc, toLocalDateTime(utc));
                 checkLock(appliance, utc);
@@ -125,29 +125,16 @@ public class ApplianceService {
 
                             }
                         }
-                        if (appliance.getCode().equals("AC") && Boolean.TRUE.equals(appliance.getInverted())) {
-                            // AC Heating mode
-                            if (average < appliance.getSetting() - appliance.getHysteresis()) {
-                                logPwrControlDecision(appliance, ON, average, utc);
-                                if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
-                                return;
-                            } else if (average > appliance.getSetting() + appliance.getHysteresis()) {
-                                logPwrControlDecision(appliance, OFF, average, utc);
-                                if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
-                                return;
-                            }
-                        } else {
-                            boolean onCondition = average > appliance.getSetting() + appliance.getHysteresis();
-                            boolean offCondition = average < appliance.getSetting() - (appliance.getHysteresis() + (appliance.getCode().equals("AC") ? 0.5 : 0));
-                            if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
-                                logPwrControlDecision(appliance, ON, average, utc);
-                                if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
-                                return;
-                            } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
-                                logPwrControlDecision(appliance, OFF, average, utc);
-                                if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
-                                return;
-                            }
+                        boolean onCondition  = average > appliance.getSetting() + appliance.getHysteresisOn();
+                        boolean offCondition = average < appliance.getSetting() - appliance.getHysteresisOff();
+                        if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
+                            logPwrControlDecision(appliance, ON, average, utc);
+                            if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
+                            return;
+                        } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
+                            logPwrControlDecision(appliance, OFF, average, utc);
+                            if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
+                            return;
                         }
 
                     }
@@ -200,7 +187,7 @@ public class ApplianceService {
         String type = appliance.getState() != decision ? "pwr-control.trigger" : "pwr-control.check";
         eventRepository.save(Event.builder().utcTime(utc)
                 .type(type).device(appliance.getCode())
-                .data(Map.of("decision", decision.name().toLowerCase(), "avg", average, "setting", appliance.getSetting(), "hysteresis", appliance.getHysteresis())).build());
+                .data(Map.of("decision", decision.name().toLowerCase(), "avg", average, "setting", appliance.getSetting(), "hysteresisOn", appliance.getHysteresisOn(), "hysteresisOff", appliance.getHysteresisOff())).build());
     }
 
     private void sendAvgMessage(Appliance appliance, Double average, LocalDateTime utc, LocalDateTime now) {

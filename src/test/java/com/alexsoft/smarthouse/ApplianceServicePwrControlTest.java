@@ -46,7 +46,8 @@ class ApplianceServicePwrControlTest {
         a.setCode("MB-LOB");
         a.setState(OFF, LocalDateTime.now());
         a.setSetting(75.0);
-        a.setHysteresis(25.0);
+        a.setHysteresisOn(25.0);
+        a.setHysteresisOff(25.0);
         a.setInverted(true);
         a.setReferenceSensors(List.of("mb-lis-outdoor"));
         a.setMeasurementType("illuminance");
