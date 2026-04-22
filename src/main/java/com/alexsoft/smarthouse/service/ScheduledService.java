@@ -44,7 +44,7 @@ public class ScheduledService {
         applianceFacade.sendAcState();
     }
 
-    @Scheduled(cron = "0 * * * * ?")
+    @Scheduled(cron = "*/5 * * * * *")
     @Transactional
     public void saveAcThresholds() {
         applianceService.getApplianceByCode("AC").ifPresent(ac -> {
