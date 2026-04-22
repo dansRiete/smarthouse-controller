@@ -44,6 +44,21 @@ public class ScheduledService {
         applianceFacade.sendAcState();
     }
 
+    @Scheduled(cron = "0 * * * * ?")
+    @Transactional
+    public void saveAcThresholds() {
+        applianceService.getApplianceByCode("AC").ifPresent(ac -> {
+            LocalDateTime utc = getUtc();
+            LocalDateTime local = getLocalDateTime();
+            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
+                    .locationId("AC-THRESHOLD-ON").utcTime(utc).localTime(local)
+                    .value(ac.getSetting() + ac.getHysteresisOn()).build());
+            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
+                    .locationId("AC-THRESHOLD-OFF").utcTime(utc).localTime(local)
+                    .value(ac.getSetting() - ac.getHysteresisOff()).build());
+        });
+    }
+
     @Scheduled(cron = "*/3 * * * * *")
     @Transactional
     public void calculateTrends() {
