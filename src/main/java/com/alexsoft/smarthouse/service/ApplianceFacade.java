@@ -161,7 +161,10 @@ public class ApplianceFacade {
 
     public void sendAcSetpointIfUnconfirmed(Appliance appliance) {
         if (!appliance.getCode().equals("AC")) return;
-        if (isAcRunningStateConfirmed(appliance.getState(), lastKnownAcRunningState)) return;
+        if (isAcRunningStateConfirmed(appliance.getState(), lastKnownAcRunningState)) {
+            LOGGER.info("AC running_state {} confirmed, skip sending (got={})", appliance.getState(), lastKnownAcRunningState);
+            return;
+        }
         double coolingSetpoint = appliance.getState() == ON ? 23.0 : 26.0;
         LOGGER.info("AC running_state {} unconfirmed (got={}), sending setpoint={}", appliance.getState(), lastKnownAcRunningState, coolingSetpoint);
         messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
