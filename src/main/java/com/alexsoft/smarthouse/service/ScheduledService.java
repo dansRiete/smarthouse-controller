@@ -39,10 +39,10 @@ public class ScheduledService {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
 
-    /*@Scheduled(cron = "0/30 * * * * ?")
+    @Scheduled(fixedDelay = 15000)
     public void sendAcState() {
         applianceFacade.sendAcState();
-    }*/
+    }
 
     @Scheduled(cron = "*/5 * * * * *")
     @Transactional
