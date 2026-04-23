@@ -153,18 +153,19 @@ public class ApplianceFacade {
         }
 
         if (appliance.getCode().equals("AC")) {
-            if (!isAcRunningStateConfirmed(appliance.getState(), lastKnownAcRunningState)) {
-                double coolingSetpoint = appliance.getState() == ON ? 23.0 : 26.0;
-                LOGGER.info("AC running_state {} unconfirmed (got={}), sending setpoint={}", appliance.getState(), lastKnownAcRunningState, coolingSetpoint);
-                messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
-                        "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
-            } else {
-                LOGGER.info("AC running_state {} confirmed, skip sending (got={})", appliance.getState(), lastKnownAcRunningState);
-
-            }
+            sendAcSetpointIfUnconfirmed(appliance);
             indicationRepositoryV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
                     .locationId("935-CORKWOOD-AC").value((double) (appliance.getState() == ON ? 1 : 0)).build());
         }
+    }
+
+    public void sendAcSetpointIfUnconfirmed(Appliance appliance) {
+        if (!appliance.getCode().equals("AC")) return;
+        if (isAcRunningStateConfirmed(appliance.getState(), lastKnownAcRunningState)) return;
+        double coolingSetpoint = appliance.getState() == ON ? 23.0 : 26.0;
+        LOGGER.info("AC running_state {} unconfirmed (got={}), sending setpoint={}", appliance.getState(), lastKnownAcRunningState, coolingSetpoint);
+        messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
+                "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
     }
 
     public void updateAcRunningState(String runningState) {
