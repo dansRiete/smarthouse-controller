@@ -155,6 +155,8 @@ public class ApplianceService {
         }
         if (!appliance.isLocked()) {
             applianceFacade.toggle(appliance, appliance.getState(), utc, "pwr-control", true);
+        } else {
+            applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
         }
     }
 
