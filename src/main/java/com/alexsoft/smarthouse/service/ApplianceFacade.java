@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -28,9 +27,6 @@ import static com.alexsoft.smarthouse.utils.DateUtils.*;
 public class ApplianceFacade {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApplianceFacade.class);
-
-    private volatile LocalDateTime acStateLastChangedAt;
-    private volatile String lastKnownAcRunningState;
 
 
     private final ApplianceRepository applianceRepository;
@@ -49,10 +45,6 @@ public class ApplianceFacade {
         if (appliance.getCode().equals("AC")) {
             indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
                     .locationId("935-CORKWOOD-AC").value(appliance.getState() == ON ? 1.0 : 0.0).build());
-            if (switched) {
-                acStateLastChangedAt = utc;
-                lastKnownAcRunningState = null;
-            }
         }
 
         setLock(appliance, utc, requester, switched);
@@ -163,31 +155,6 @@ public class ApplianceFacade {
             indicationRepositoryV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
                     .locationId("935-CORKWOOD-AC").value((double) (appliance.getState() == ON ? 1 : 0)).build());
         }
-    }
-
-    public void updateAcRunningState(String runningState) {
-        this.lastKnownAcRunningState = runningState;
-        LOGGER.info("ac-thermostat running_state={}", runningState);
-    }
-
-    @Transactional
-    public void sendAcState() {
-        if (acStateLastChangedAt == null) return;
-        if (Duration.between(acStateLastChangedAt, getUtc()).toMinutes() >= 5) return;
-
-        Appliance ac = applianceRepository.findById("AC").orElseThrow();
-        if (isAcRunningStateConfirmed(ac.getState(), lastKnownAcRunningState)) return;
-
-        double coolingSetpoint = ac.getState() == ON ? 23.0 : 26.0;
-        LOGGER.info("AC running_state not yet confirmed (got={}), resending setpoint={}", lastKnownAcRunningState, coolingSetpoint);
-        messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
-                "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
-    }
-
-    private boolean isAcRunningStateConfirmed(ApplianceState acState, String runningState) {
-        if (runningState == null) return false;
-        if (acState == ON) return "cooling".equalsIgnoreCase(runningState) || "cool".equalsIgnoreCase(runningState);
-        return "idle".equalsIgnoreCase(runningState);
     }
 
 }

@@ -39,11 +39,6 @@ public class ScheduledService {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
 
-    @Scheduled(fixedDelay = 15000)
-    public void sendAcState() {
-        applianceFacade.sendAcState();
-    }
-
     @Scheduled(cron = "*/5 * * * * *")
     @Transactional
     public void saveAcThresholds() {
