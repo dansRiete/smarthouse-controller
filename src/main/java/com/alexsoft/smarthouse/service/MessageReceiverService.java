@@ -135,6 +135,12 @@ public class MessageReceiverService {
                         indicationV3s.add(indicationV3Builder.measurementType("temp").unit("c")
                                 .value(temperature).build());
                     }
+                    if (map.containsKey("local_temperature")) {
+                        Double temperature = getValue(String.valueOf(map.get("local_temperature")));
+                        indicationV3s.add(indicationV3Builder.locationId("935-CORKWOOD-HW").measurementType("temp").unit("c")
+                                .value(temperature).build());
+                        indicationV3Builder.locationId(deviceId);
+                    }
                     if (map.containsKey("humidity")) {
                         Double rh = getValue(String.valueOf(map.get("humidity")));
                         indicationV3s.add(indicationV3Builder.measurementType("rh").unit("%")
