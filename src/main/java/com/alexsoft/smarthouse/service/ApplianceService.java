@@ -78,7 +78,11 @@ public class ApplianceService {
                         appliance.getCode(), average, appliance.getSetting(), appliance.getHysteresisOn(), appliance.getHysteresisOff());
 
                 sendAvgMessage(appliance, average, utc, toLocalDateTime(utc));
+                boolean wasLocked = appliance.isLocked();
                 checkLock(appliance, utc);
+                if (wasLocked && !appliance.isLocked()) {
+                    applianceFacade.sendState(appliance);
+                }
 
                 if (!appliance.isLocked()) {
 
