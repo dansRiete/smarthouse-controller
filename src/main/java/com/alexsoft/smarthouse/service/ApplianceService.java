@@ -130,10 +130,12 @@ public class ApplianceService {
                         if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
                             logPwrControlDecision(appliance, ON, average, utc);
                             if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
+                            else applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
                             return;
                         } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
                             logPwrControlDecision(appliance, OFF, average, utc);
                             if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
+                            else applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
                             return;
                         }
 
