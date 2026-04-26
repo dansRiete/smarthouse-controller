@@ -123,7 +123,7 @@ public class ApplianceFacade {
         }
     }
 
-    private void sendState(Appliance appliance) {
+    public void sendState(Appliance appliance) {
         LocalDateTime utc = getUtc();
         if (appliance.getZigbee2MqttTopic() != null) {
             if (appliance.getCode().equals("LR-LUTV") && (toLocalDateTime(utc).getHour() < 7 || toLocalDateTime(utc).getHour() > 21)) {
