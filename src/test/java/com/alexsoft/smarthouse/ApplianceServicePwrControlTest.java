@@ -128,4 +128,25 @@ class ApplianceServicePwrControlTest {
         verify(eventRepository).save(argThat(e -> "lock.expired".equals(e.getType())));
         verify(applianceFacade).toggle(any(), eq(ON), any(), eq("pwr-control"), eq(true));
     }
+
+    // Inverted light locked OFF overnight. Lock expires but illuminance is already above threshold —
+    // offCondition is met but state is already OFF, so no toggle. sendState must still be called
+    // immediately on lock expiry so the dim-glow (brightness=20) clears right away without waiting
+    // for illuminance to drift back through the neutral zone.
+    @Test
+    void lockExpiry_brightIlluminance_callsSendStateWithoutToggle() {
+        Appliance light = lightOff();
+        light.setLocked(true);
+        light.setLockedUntilUtc(LocalDateTime.of(2020, 1, 1, 0, 0)); // expired
+
+        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(light));
+        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+                anyList(), any(), anyString()))
+                .thenReturn(List.of(IndicationV3.builder().value(150.0).build())); // bright → offCondition met, state already OFF
+
+        applianceService.powerControl("MB-LOB");
+
+        verify(applianceFacade).sendState(any());
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
 }

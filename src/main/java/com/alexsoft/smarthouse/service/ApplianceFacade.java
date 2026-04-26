@@ -161,6 +161,10 @@ public class ApplianceFacade {
 
     public void sendAcSetpointIfUnconfirmed(Appliance appliance) {
         if (!appliance.getCode().equals("AC")) return;
+        LocalDateTime utc = getUtc();
+        indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
+                .localTime(toLocalDateTime(utc)).utcTime(utc)
+                .locationId("935-CORKWOOD-AC").value(appliance.getState() == ON ? 1.0 : 0.0).build());
         if (isAcRunningStateConfirmed(appliance.getState(), lastKnownAcRunningState)) {
             LOGGER.debug("AC running_state {} confirmed, skip sending (got={})", appliance.getState(), lastKnownAcRunningState);
             return;
