@@ -119,8 +119,9 @@ public class MessageReceiverService {
                     List<IndicationV3> indicationV3s = new ArrayList<>();
                     Map<String, Object> map = new ObjectMapper().readValue(payload, new TypeReference<>() {});
                     String deviceId = topic.split("/")[1];
+                    String locationId = "out".equals(deviceId) ? "935-CORKWOOD-AC-OUT" : deviceId;
                     IndicationV3Builder indicationV3Builder = IndicationV3.builder().mqttTopic(topic).localTime(getLocalDateTime())
-                            .utcTime(getUtc()).publisherId("zigbee2mqtt").locationId(deviceId);
+                            .utcTime(getUtc()).publisherId("zigbee2mqtt").locationId(locationId);
 
                     if (map.containsKey("power")) {
                         MEASUREMENT_TYPES.forEach(m -> indicationV3s.add(indicationV3Builder.measurementType(m).unit(UNITS_MAP.get(m))
