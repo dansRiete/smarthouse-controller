@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
 import static com.alexsoft.smarthouse.utils.DateUtils.getLocalDateTime;
 import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
 
@@ -27,12 +28,32 @@ public class ScheduledService {
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
     private final ApplianceService applianceService;
-    private final ApplianceFacade applianceFacade;
     private final IndicationRepositoryV3 indicationRepositoryV3;
     private final IndicationServiceV3 indicationServiceV3;
+    private final MessageSenderService messageSenderService;
 
     @Value("${mqtt.topic}")
     private String measurementTopic;
+
+    @Scheduled(cron = "0 * * * * *")
+    @Transactional
+    public void checkDehPowerAnomaly() {
+        applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
+            if (deh.getState() != ON) return;
+            List<IndicationV3> readings = indicationRepositoryV3
+                    .findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+                            List.of("DEH"), getUtc().minusMinutes(5), "power");
+            if (readings.size() < 20) return;
+            double avg = readings.stream().mapToDouble(IndicationV3::getValue).average().orElse(0);
+            if (avg < 50) {
+                log.warn("deh.power.anomaly: state=ON but avg power={}W over last 5min — alerting", avg);
+                //  todo create an appliance_group e.g. ALLERTABLE_LIGHTS and assign in the DB instead of hardcoding here
+                messageSenderService.sendMessage("zigbee2mqtt/MB-LOTV/set", "{\"effect\": \"blink\"}");
+                messageSenderService.sendMessage("zigbee2mqtt/LR-LUTV/set", "{\"effect\": \"blink\"}");
+                messageSenderService.sendMessage("zigbee2mqtt/MB-LOB/set", "{\"effect\": \"blink\"}");
+            }
+        });
+    }
 
     @Scheduled(cron = "0/10 * * * * ?")
     public void powerControl() {
