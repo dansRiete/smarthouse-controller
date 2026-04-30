@@ -17,7 +17,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE=ghcr.io/dansriete/smarthouse-controller
-          docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+          docker build --no-cache -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
           docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest
 
