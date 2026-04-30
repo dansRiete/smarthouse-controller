@@ -1,9 +1,9 @@
-FROM maven:3.9-eclipse-temurin-25 AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 COPY . .
-RUN mvn clean package -DskipTests
+RUN ./mvnw clean package -DskipTests
 
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=builder /build/target/SmartHouse-1.0-RELEASE.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
