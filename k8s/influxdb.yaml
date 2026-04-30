@@ -20,6 +20,7 @@ spec:
           image: influxdb:2.0
           ports:
             - containerPort: 8086
+              hostPort: 8086
           volumeMounts:
             - name: data
               mountPath: /var/lib/influxdb2
@@ -38,8 +39,5 @@ spec:
   selector:
     app: smarthouse-influxdb
   ports:
-    - name: influxdb
-      port: 8086
+    - port: 8086
       targetPort: 8086
-      nodePort: 8086
-  type: NodePort

@@ -32,6 +32,7 @@ spec:
           image: eclipse-mosquitto:latest
           ports:
             - containerPort: 1883
+              hostPort: 1883
           volumeMounts:
             - name: config
               mountPath: /mosquitto/config
@@ -49,8 +50,5 @@ spec:
   selector:
     app: smarthouse-mqtt-broker
   ports:
-    - name: mqtt
-      port: 1883
+    - port: 1883
       targetPort: 1883
-      nodePort: 1883
-  type: NodePort

@@ -20,6 +20,7 @@ spec:
           image: postgres:14.5
           ports:
             - containerPort: 5432
+              hostPort: 24870
           env:
             - name: POSTGRES_USER
               value: smarthouse
@@ -48,8 +49,5 @@ spec:
   selector:
     app: smarthouse-db
   ports:
-    - name: postgres
-      port: 5432
+    - port: 5432
       targetPort: 5432
-      nodePort: 24870
-  type: NodePort
