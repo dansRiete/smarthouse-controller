@@ -3,6 +3,15 @@ server:
   servlet:
     context-path: /smarthouse
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+
 spring:
   jackson:
     default-property-inclusion: non_null
