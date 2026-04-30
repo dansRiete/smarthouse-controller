@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: smarthouse
+data:
+  mosquitto.conf: |
+    listener 1883
+    allow_anonymous true
+    persistent_client_expiration 1d
+    max_keepalive 60
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smarthouse-mqtt-broker
+  namespace: smarthouse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: smarthouse-mqtt-broker
+  template:
+    metadata:
+      labels:
+        app: smarthouse-mqtt-broker
+    spec:
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:latest
+          ports:
+            - containerPort: 1883
+          volumeMounts:
+            - name: config
+              mountPath: /mosquitto/config
+      volumes:
+        - name: config
+          configMap:
+            name: mosquitto-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smarthouse-mqtt-broker
+  namespace: smarthouse
+spec:
+  selector:
+    app: smarthouse-mqtt-broker
+  ports:
+    - name: mqtt
+      port: 1883
+      targetPort: 1883
+      nodePort: 1883
+  type: NodePort

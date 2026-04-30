@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smarthouse-influxdb
+  namespace: smarthouse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: smarthouse-influxdb
+  template:
+    metadata:
+      labels:
+        app: smarthouse-influxdb
+    spec:
+      containers:
+        - name: influxdb
+          image: influxdb:2.0
+          ports:
+            - containerPort: 8086
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/influxdb2
+      volumes:
+        - name: data
+          hostPath:
+            path: /home/alexkzk/influxdb_data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smarthouse-influxdb
+  namespace: smarthouse
+spec:
+  selector:
+    app: smarthouse-influxdb
+  ports:
+    - name: influxdb
+      port: 8086
+      targetPort: 8086
+      nodePort: 8086
+  type: NodePort
