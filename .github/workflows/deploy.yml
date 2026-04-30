@@ -1,0 +1,29 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=ghcr.io/dansriete/smarthouse-controller
+          docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/smarthouse-controller \
+            smarthouse-controller=ghcr.io/dansriete/smarthouse-controller:${{ github.sha }} \
+            -n smarthouse
+          kubectl rollout status deployment/smarthouse-controller -n smarthouse --timeout=120s

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smarthouse-controller
+  namespace: smarthouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smarthouse-controller
+  template:
+    metadata:
+      labels:
+        app: smarthouse-controller
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: smarthouse-controller
+          image: ghcr.io/dansriete/smarthouse-controller:latest
+          ports:
+            - containerPort: 24867
+              hostPort: 24867
+          envFrom:
+            - configMapRef:
+                name: smarthouse-config
+            - secretRef:
+                name: smarthouse-secret
+          readinessProbe:
+            httpGet:
+              path: /smarthouse/actuator/health
+              port: 24867
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /smarthouse/actuator/health
+              port: 24867
+            initialDelaySeconds: 60
+            periodSeconds: 30

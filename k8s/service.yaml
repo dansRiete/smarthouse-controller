@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smarthouse-controller
+  namespace: smarthouse
+spec:
+  selector:
+    app: smarthouse-controller
+  ports:
+    - port: 24867
+      targetPort: 24867

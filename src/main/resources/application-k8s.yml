@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://192.168.0.201:24870/smarthouse
+
+logging:
+  filepath: /var/log/smarthouse
+  level:
+    org:
+      hibernate:
+        SQL: debug
+
+mqtt:
+  server-in: 192.168.0.201
+  server-out: 192.168.0.201
+  msgSavingEnabled: true
+  msgSendingEnabled: true
+
+influxdb:
+  url: http://192.168.0.201:8086
+
+smarthouse:
+  db:
+    hostname: 192.168.0.201
+    port: 24870
+    dump-on-destroy: false
+    restore-on-startup: false
