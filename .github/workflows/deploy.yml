@@ -22,6 +22,8 @@ jobs:
           docker push $IMAGE:latest
 
       - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: /home/alexkzk/.kube/config
         run: |
           kubectl set image deployment/smarthouse-controller \
             smarthouse-controller=ghcr.io/dansriete/smarthouse-controller:${{ github.sha }} \
