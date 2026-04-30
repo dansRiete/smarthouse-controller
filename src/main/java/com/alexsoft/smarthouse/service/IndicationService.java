@@ -172,6 +172,7 @@ public class IndicationService {
         createAverageMeasurement(amount, temporalUnit, startDate, endDate);
     }
 
+
     public void createAverageMeasurement(Integer amount, TemporalUnit temporalUnit, LocalDateTime startDate, LocalDateTime endDate) {
         LOGGER.info("Start date: {}, end date: {}", startDate, endDate);
         List<Indication> indications = aggregateOnInterval(amount, temporalUnit, startDate, endDate);
