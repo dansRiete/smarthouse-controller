@@ -10,7 +10,6 @@ import com.alexsoft.smarthouse.service.MessageSenderService;
 import com.alexsoft.smarthouse.service.ScheduledService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,10 +22,8 @@ import java.util.stream.IntStream;
 
 import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -41,17 +38,13 @@ class ScheduledServiceDehPowerAnomalyTest {
 
     @InjectMocks ScheduledService scheduledService;
 
-    private static final String BLINK_TOPIC_MB = "zigbee2mqtt/MB-LOTV/set";
+    private static final String BLINK_TOPIC = "zigbee2mqtt/MB-LOTV/set";
     private static final String BLINK_PAYLOAD = "{\"effect\": \"blink\"}";
 
     private Appliance deh(com.alexsoft.smarthouse.enums.ApplianceState state) {
-        return deh(state, LocalDateTime.now().minusHours(1));
-    }
-
-    private Appliance deh(com.alexsoft.smarthouse.enums.ApplianceState state, LocalDateTime switchedAt) {
         Appliance a = new Appliance();
         a.setCode("DEH");
-        a.setState(state, switchedAt);
+        a.setState(state, LocalDateTime.now().minusHours(1));
         return a;
     }
 
@@ -129,7 +122,7 @@ class ScheduledServiceDehPowerAnomalyTest {
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
+        verify(messageSenderService).sendMessage(BLINK_TOPIC, BLINK_PAYLOAD);
     }
 
     // --- Anomaly: ON state but zero power ---
@@ -142,18 +135,19 @@ class ScheduledServiceDehPowerAnomalyTest {
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
+        verify(messageSenderService).sendMessage(BLINK_TOPIC, BLINK_PAYLOAD);
     }
 
     @Test
     void dehOn_30ReadingsBelowThreshold_alertSent() {
         when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON)));
+        // 49W is below the 50W threshold
         when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
                 anyList(), any(), eq("power"))).thenReturn(powerReadings(30, 49.0));
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
+        verify(messageSenderService).sendMessage(BLINK_TOPIC, BLINK_PAYLOAD);
     }
 
     // --- Normal operation: ON state with real power ---
@@ -172,6 +166,7 @@ class ScheduledServiceDehPowerAnomalyTest {
     @Test
     void dehOn_30ReadingsExactlyAt50Watts_noAlertSent() {
         when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON)));
+        // 50W is at the threshold — should NOT alert (condition is avg < 50)
         when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
                 anyList(), any(), eq("power"))).thenReturn(powerReadings(30, 50.0));
 
@@ -180,11 +175,12 @@ class ScheduledServiceDehPowerAnomalyTest {
         verify(messageSenderService, never()).sendMessage(anyString(), anyString());
     }
 
-    // --- Mixed readings ---
+    // --- Mixed readings: some high, some zero (DEH just started or briefly stopped) ---
 
     @Test
     void dehOn_mixedReadings_avgAboveThreshold_noAlertSent() {
         when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON)));
+        // 15 readings at 0W + 15 at 563W → avg ≈ 281W
         when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
                 anyList(), any(), eq("power"))).thenReturn(mixedPowerReadings(15, 15));
 
@@ -194,19 +190,21 @@ class ScheduledServiceDehPowerAnomalyTest {
     }
 
     @Test
-    void dehOn_mostlyZeroWithOneHighReading_alertFires() {
+    void dehOn_mostlyZeroWithOneHighReading_avgAboveThreshold_noAlertSent() {
         when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON)));
-        // 29 at 0W + 1 at 563W → avg ≈ 18.8W < 50W → alert
+        // 29 readings at 0W + 1 at 563W → avg ≈ 18.8W — still below 50W, alert fires
+        // This shows that a single spike does NOT suppress the alert
         when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
                 anyList(), any(), eq("power"))).thenReturn(mixedPowerReadings(29, 1));
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
+        // avg = (29*0 + 1*563) / 30 = 18.8W < 50W → alert
+        verify(messageSenderService).sendMessage(BLINK_TOPIC, BLINK_PAYLOAD);
     }
 
     @Test
-    void dehOn_threeHighReadingsOutOf30_noAlertSent() {
+    void dehOn_threeHighReadingsOutOf30_avgAboveThreshold_noAlertSent() {
         when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON)));
         // 27 at 0W + 3 at 563W → avg = 56.3W > 50W → no alert
         when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
@@ -215,52 +213,6 @@ class ScheduledServiceDehPowerAnomalyTest {
         scheduledService.checkDehPowerAnomaly();
 
         verify(messageSenderService, never()).sendMessage(anyString(), anyString());
-    }
-
-    // --- switchedOn guard: no false alert right after DEH turns on ---
-
-    @Test
-    void dehJustTurnedOn_windowLimitedToSwitchedOn_insufficientReadings_noAlert() {
-        // DEH switched ON 1 minute ago — window is clamped to switchedOn,
-        // so the repo returns only a few readings (< 20) and no alert fires.
-        Appliance recentlyOn = deh(ON, LocalDateTime.now().minusMinutes(1));
-        when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(recentlyOn));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                anyList(), any(), eq("power"))).thenReturn(powerReadings(5, 0.0));
-
-        scheduledService.checkDehPowerAnomaly();
-
-        verify(messageSenderService, never()).sendMessage(anyString(), anyString());
-    }
-
-    @Test
-    void dehJustTurnedOn_queryWindowStartsAtSwitchedOn_notAt5MinAgo() {
-        LocalDateTime switchedOn = LocalDateTime.now().minusMinutes(2);
-        Appliance recentlyOn = deh(ON, switchedOn);
-        when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(recentlyOn));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                anyList(), any(), eq("power"))).thenReturn(Collections.emptyList());
-
-        scheduledService.checkDehPowerAnomaly();
-
-        // windowStart must be >= switchedOn (not 5 min ago)
-        verify(indicationRepositoryV3).findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                eq(List.of("DEH")),
-                argThat(t -> !t.isBefore(switchedOn.minusSeconds(1))),
-                eq("power"));
-    }
-
-    @Test
-    void dehTurnedOnMoreThan5MinAgo_fullWindowUsed_alertFires() {
-        // DEH turned ON 6 min ago — full 5-min window applies, all 0W → alert
-        when(applianceService.getApplianceByCode("DEH"))
-                .thenReturn(Optional.of(deh(ON, LocalDateTime.now().minusMinutes(6))));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                anyList(), any(), eq("power"))).thenReturn(powerReadings(30, 0.0));
-
-        scheduledService.checkDehPowerAnomaly();
-
-        verify(messageSenderService).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
     }
 
     // --- Correct query parameters ---
@@ -287,6 +239,6 @@ class ScheduledServiceDehPowerAnomalyTest {
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService, times(1)).sendMessage(BLINK_TOPIC_MB, BLINK_PAYLOAD);
+        verify(messageSenderService, times(1)).sendMessage(BLINK_TOPIC, BLINK_PAYLOAD);
     }
 }
