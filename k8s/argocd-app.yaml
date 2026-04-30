@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smarthouse-controller
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dansRiete/smarthouse-controller.git
+    targetRevision: master
+    path: k8s
+    directory:
+      exclude: argocd-app.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: smarthouse
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

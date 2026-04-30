@@ -7,7 +7,7 @@ logging:
   level:
     org:
       hibernate:
-        SQL: debug
+        SQL: warn
 
 mqtt:
   server-in: 192.168.0.201
