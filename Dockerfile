@@ -1,9 +1,9 @@
-FROM amazoncorretto:21
+FROM eclipse-temurin:25
 
 # Install git and ssh client so we can fetch and build from Git on each start
-RUN yum update -y && \
-    yum install -y git openssh-clients && \
-    yum clean all
+RUN apt-get update && \
+    apt-get install -y git openssh-client && \
+    rm -rf /var/lib/apt/lists/*
 
 # Entry point script: handles SSH, git clone/fetch, build, run
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
