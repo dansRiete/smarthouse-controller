@@ -40,9 +40,13 @@ public class ScheduledService {
     public void checkDehPowerAnomaly() {
         applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
             if (deh.getState() != ON) return;
+            LocalDateTime windowStart = getUtc().minusMinutes(5);
+            if (deh.getSwitchedOn() != null && deh.getSwitchedOn().isAfter(windowStart)) {
+                windowStart = deh.getSwitchedOn();
+            }
             List<IndicationV3> readings = indicationRepositoryV3
                     .findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                            List.of("DEH"), getUtc().minusMinutes(5), "power");
+                            List.of("DEH"), windowStart, "power");
             if (readings.size() < 20) return;
             double avg = readings.stream().mapToDouble(IndicationV3::getValue).average().orElse(0);
             if (avg < 50) {
