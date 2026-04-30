@@ -10,12 +10,9 @@ import java.util.Objects;
 @Table(schema = "main", name = "indication_v3",
         indexes = {
                 @Index(name = "idx_indication_utc_time", columnList = "utcTime"),
-                @Index(name = "idx_indication_local_time", columnList = "localTime"),
                 @Index(name = "idx_indication_measurement_type", columnList = "measurementType"),
                 @Index(name = "idx_indication_device_id", columnList = "deviceId"),
-                @Index(name = "idx_indication_device_type", columnList = "deviceType"),
-                @Index(name = "idx_indication_unit", columnList = "unit"),
-                @Index(name = "idx_indication_value", columnList = "value")
+                @Index(name = "idx_indication_device_type", columnList = "deviceType")
         }
 )
 @Builder
