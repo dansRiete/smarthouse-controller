@@ -28,4 +28,4 @@ jobs:
           kubectl set image deployment/smarthouse-controller \
             smarthouse-controller=ghcr.io/dansriete/smarthouse-controller:${{ github.sha }} \
             -n smarthouse
-          kubectl rollout status deployment/smarthouse-controller -n smarthouse --timeout=120s
+          kubectl rollout status deployment/smarthouse-controller -n smarthouse --timeout=300s
