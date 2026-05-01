@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zigbee2mqtt
+  namespace: smarthouse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zigbee2mqtt
+  template:
+    metadata:
+      labels:
+        app: zigbee2mqtt
+    spec:
+      containers:
+        - name: zigbee2mqtt
+          image: koenkk/zigbee2mqtt
+          ports:
+            - containerPort: 8087
+              hostPort: 8087
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: serial
+              mountPath: /dev/serial
+      volumes:
+        - name: data
+          hostPath:
+            path: /home/alexkzk/zigbee2mqtt-data
+            type: Directory
+        - name: serial
+          hostPath:
+            path: /dev/serial
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zigbee2mqtt
+  namespace: smarthouse
+spec:
+  selector:
+    app: zigbee2mqtt
+  ports:
+    - port: 8087
+      targetPort: 8087
