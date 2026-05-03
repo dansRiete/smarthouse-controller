@@ -24,11 +24,11 @@ public class FcmController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<Void> sendAlert(@RequestBody Map<String, String> body) {
-        fcmService.sendAlert(
+    public ResponseEntity<String> sendAlert(@RequestBody Map<String, String> body) {
+        String result = fcmService.sendAlert(
                 body.getOrDefault("title", "Smarthouse Alert"),
                 body.getOrDefault("body", "")
         );
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(result);
     }
 }

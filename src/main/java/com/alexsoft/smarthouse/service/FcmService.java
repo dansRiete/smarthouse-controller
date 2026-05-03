@@ -72,16 +72,17 @@ public class FcmService {
         );
     }
 
-    public void sendAlert(String title, String body) {
+    public String sendAlert(String title, String body) {
         if (FirebaseApp.getApps().isEmpty()) {
             log.warn("Firebase not initialized, skipping FCM alert");
-            return;
+            return "ERROR: Firebase not initialized";
         }
         List<String> tokens = fcmTokenRepository.findAllTokens();
         if (tokens.isEmpty()) {
             log.warn("No FCM tokens registered");
-            return;
+            return "ERROR: No FCM tokens registered";
         }
+        StringBuilder result = new StringBuilder();
         for (String token : tokens) {
             try {
                 Message message = Message.builder()
@@ -92,10 +93,13 @@ public class FcmService {
                                 .build())
                         .setToken(token)
                         .build();
-                FirebaseMessaging.getInstance().send(message);
-                log.info("FCM alert sent to token ...{}", token.substring(Math.max(0, token.length() - 10)));
+                String messageId = FirebaseMessaging.getInstance().send(message);
+                log.info("FCM alert sent to token ...{}, messageId={}", token.substring(Math.max(0, token.length() - 10)), messageId);
+                result.append("OK: sent to ...").append(token, Math.max(0, token.length() - 10), token.length())
+                        .append(", messageId=").append(messageId).append("\n");
             } catch (FirebaseMessagingException e) {
                 log.error("FCM send failed: {}", e.getMessage());
+                result.append("ERROR: ").append(e.getMessage()).append("\n");
                 if (e.getMessagingErrorCode() != null &&
                         e.getMessagingErrorCode().name().contains("UNREGISTERED")) {
                     fcmTokenRepository.deleteByToken(token);
@@ -103,5 +107,6 @@ public class FcmService {
                 }
             }
         }
+        return result.toString().trim();
     }
 }
