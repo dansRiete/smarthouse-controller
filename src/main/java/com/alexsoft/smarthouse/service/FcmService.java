@@ -72,6 +72,7 @@ public class FcmService {
         );
     }
 
+    @Transactional
     public String sendAlert(String title, String body) {
         if (FirebaseApp.getApps().isEmpty()) {
             log.warn("Firebase not initialized, skipping FCM alert");
