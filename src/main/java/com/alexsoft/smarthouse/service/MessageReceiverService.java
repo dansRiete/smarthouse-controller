@@ -115,7 +115,10 @@ public class MessageReceiverService {
                 if (mqttTopic.equals(topic)) {
                     List<IndicationV3> indicationV3s = indicationService.save(toIndication(payload), topic);
                     indicationV3s.forEach(ind -> ind.setMqttTopic(topic));
-                } else if (topic != null && !topic.startsWith("zigbee2mqtt/bridge")) {
+                // Ignore /set topics: they are outbound command channels. The app subscribes to
+                // zigbee2mqtt/# so it receives its own publishes and retained commands back as
+                // inbound messages, which would cause spurious state changes and false lock events.
+                } else if (topic != null && !topic.startsWith("zigbee2mqtt/bridge") && !topic.endsWith("/set")) {
                     List<IndicationV3> indicationV3s = new ArrayList<>();
                     Map<String, Object> map = new ObjectMapper().readValue(payload, new TypeReference<>() {});
                     String deviceId = topic.split("/")[1];

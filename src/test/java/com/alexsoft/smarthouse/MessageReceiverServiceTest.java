@@ -1,0 +1,100 @@
+package com.alexsoft.smarthouse;
+
+import com.alexsoft.smarthouse.entity.Appliance;
+import com.alexsoft.smarthouse.enums.ApplianceState;
+import com.alexsoft.smarthouse.repository.EventRepository;
+import com.alexsoft.smarthouse.service.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class MessageReceiverServiceTest {
+
+    @Mock ApplianceService applianceService;
+    @Mock IndicationService indicationService;
+    @Mock IndicationServiceV3 indicationServiceV3;
+    @Mock EventRepository eventRepository;
+    @Mock ApplianceFacade applianceFacade;
+
+    @InjectMocks MessageReceiverService service;
+
+    private MessageHandler handler;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(service, "mqttTopic", "custom/sensor-topic");
+        ReflectionTestUtils.setField(service, "measurementTopic", "custom/sensor-topic");
+        handler = service.messageHandler(applianceFacade);
+    }
+
+    private Message<String> mqttMessage(String topic, String payload) {
+        return MessageBuilder.withPayload(payload)
+                .setHeader("mqtt_receivedTopic", topic)
+                .build();
+    }
+
+    private Appliance applianceWithState(String code, ApplianceState state) {
+        Appliance a = new Appliance();
+        a.setCode(code);
+        a.setState(state, LocalDateTime.now().minusHours(1));
+        return a;
+    }
+
+    // /set topics are the app's own command channel — receiving them back is an echo or retained
+    // message from the broker, not a real device state change. Toggle must never be triggered.
+    @Test
+    void setTopic_doesNotTriggerToggle() {
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS/set", "{\"state\":\"ON\"}"));
+
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void setTopic_doesNotQueryAppliances() {
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS/set", "{\"state\":\"ON\"}"));
+
+        verify(applianceService, never()).getApplianceByCode(any());
+        verify(applianceService, never()).getApplianceByZigbeeTopic(any());
+    }
+
+    @Test
+    void stateTopic_triggersToggleOnStateChange() {
+        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.OFF);
+        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+
+        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER-LIGHTS"), eq(false));
+    }
+
+    @Test
+    void stateTopic_noToggleWhenStateUnchanged() {
+        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.ON);
+        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void bridgeTopic_doesNotTriggerToggle() {
+        handler.handleMessage(mqttMessage("zigbee2mqtt/bridge/state", "{\"state\":\"online\"}"));
+
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
+}
