@@ -77,6 +77,9 @@ time:
   local-time-zone: America/New_York
   chart-date-time-pattern: E d, HH:mm
 
+firebase:
+  credentials-path: ${HOME}/.config/smarthouse/firebase-service-account.json
+
 smarthouse:
   db:
     port: 5436

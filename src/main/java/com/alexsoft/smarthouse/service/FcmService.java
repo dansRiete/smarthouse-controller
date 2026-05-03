@@ -1,0 +1,107 @@
+package com.alexsoft.smarthouse.service;
+
+import com.alexsoft.smarthouse.entity.FcmToken;
+import com.alexsoft.smarthouse.repository.FcmTokenRepository;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.Message;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class FcmService {
+
+    @Value("${firebase.credentials-path}")
+    private String credentialsPath;
+
+    private final FcmTokenRepository fcmTokenRepository;
+
+    @PostConstruct
+    public void initialize() {
+        try {
+            if (!Files.exists(Paths.get(credentialsPath))) {
+                log.warn("Firebase credentials not found at {} — FCM disabled", credentialsPath);
+                return;
+            }
+            InputStream serviceAccount = new FileInputStream(credentialsPath);
+            if (FirebaseApp.getApps().isEmpty()) {
+                FirebaseOptions options = FirebaseOptions.builder()
+                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                        .build();
+                FirebaseApp.initializeApp(options);
+                log.info("Firebase initialized");
+            }
+        } catch (Exception e) {
+            log.error("Failed to initialize Firebase: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void registerToken(String token, String deviceName) {
+        fcmTokenRepository.findByToken(token).ifPresentOrElse(
+                existing -> {
+                    existing.setDeviceName(deviceName);
+                    existing.setRegisteredAt(LocalDateTime.now());
+                    log.info("FCM token refreshed for device: {}", deviceName);
+                },
+                () -> {
+                    fcmTokenRepository.save(FcmToken.builder()
+                            .token(token)
+                            .deviceName(deviceName)
+                            .registeredAt(LocalDateTime.now())
+                            .build());
+                    log.info("FCM token registered for device: {}", deviceName);
+                }
+        );
+    }
+
+    public void sendAlert(String title, String body) {
+        if (FirebaseApp.getApps().isEmpty()) {
+            log.warn("Firebase not initialized, skipping FCM alert");
+            return;
+        }
+        List<String> tokens = fcmTokenRepository.findAllTokens();
+        if (tokens.isEmpty()) {
+            log.warn("No FCM tokens registered");
+            return;
+        }
+        for (String token : tokens) {
+            try {
+                Message message = Message.builder()
+                        .putData("title", title)
+                        .putData("body", body)
+                        .setAndroidConfig(AndroidConfig.builder()
+                                .setPriority(AndroidConfig.Priority.HIGH)
+                                .build())
+                        .setToken(token)
+                        .build();
+                FirebaseMessaging.getInstance().send(message);
+                log.info("FCM alert sent to token ...{}", token.substring(Math.max(0, token.length() - 10)));
+            } catch (FirebaseMessagingException e) {
+                log.error("FCM send failed: {}", e.getMessage());
+                if (e.getMessagingErrorCode() != null &&
+                        e.getMessagingErrorCode().name().contains("UNREGISTERED")) {
+                    fcmTokenRepository.deleteByToken(token);
+                    log.info("Removed unregistered FCM token");
+                }
+            }
+        }
+    }
+}

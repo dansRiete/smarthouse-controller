@@ -170,5 +170,10 @@
             <artifactId>influxdb-client-java</artifactId>
             <version>6.9.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.4.1</version>
+        </dependency>
     </dependencies>
 </project>

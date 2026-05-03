@@ -26,3 +26,4 @@ target/
 *.rar
 *.pid
 .aider*
+firebase-service-account.json
