@@ -7,3 +7,4 @@ data:
   SPRING_PROFILES_ACTIVE: "k8s"
   SPRING_DATASOURCE_URL: "jdbc:postgresql://smarthouse-db:5432/smarthouse"
   SPRING_DATASOURCE_USERNAME: "smarthouse"
+  FIREBASE_CREDENTIALS_PATH: "/etc/firebase/firebase-service-account.json"

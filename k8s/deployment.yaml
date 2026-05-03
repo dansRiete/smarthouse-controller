@@ -28,6 +28,10 @@ spec:
                 name: smarthouse-config
             - secretRef:
                 name: smarthouse-secret
+          volumeMounts:
+            - name: firebase-credentials
+              mountPath: /etc/firebase
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /smarthouse/actuator/health
@@ -40,3 +44,7 @@ spec:
               port: 24867
             initialDelaySeconds: 60
             periodSeconds: 30
+      volumes:
+        - name: firebase-credentials
+          secret:
+            secretName: firebase-credentials

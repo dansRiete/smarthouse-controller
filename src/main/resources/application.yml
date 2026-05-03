@@ -78,7 +78,7 @@ time:
   chart-date-time-pattern: E d, HH:mm
 
 firebase:
-  credentials-path: ${HOME}/.config/smarthouse/firebase-service-account.json
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:/home/alexkzk/.config/smarthouse/firebase-service-account.json}
 
 smarthouse:
   db:
