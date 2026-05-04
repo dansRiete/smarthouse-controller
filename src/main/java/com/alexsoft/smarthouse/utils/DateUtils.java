@@ -188,11 +188,15 @@ public class DateUtils {
 
 
     public static boolean isDark() {
-        LocalDateTime nearestSunriseTime = getNearestSunriseTime();
-        LocalDateTime nearestSunsetTime = getNearestSunsetTime();
+        return isDark(getLocalDateTime());
+    }
 
-        // Check if the current time is either before sunrise or after sunset
-        return nearestSunriseTime.isBefore(nearestSunsetTime);
+    public static boolean isDark(LocalDateTime now) {
+        SunriseSunsetCalculator calc = new SunriseSunsetCalculator(USER_LOCATION, APPLICATION_OPERATION_TIMEZONE);
+        Calendar date = toCalendar(now);
+        LocalDateTime sunrise = LocalDateTime.ofInstant(calc.getOfficialSunriseCalendarForDate(date).toInstant(), userTimezone);
+        LocalDateTime sunset = LocalDateTime.ofInstant(calc.getOfficialSunsetCalendarForDate(date).toInstant(), userTimezone);
+        return now.isBefore(sunrise) || now.isAfter(sunset);
     }
 
 }

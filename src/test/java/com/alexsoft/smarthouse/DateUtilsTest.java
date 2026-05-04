@@ -1,23 +1,82 @@
 package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.utils.DateUtils;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.stream.Stream;
 
+import static com.alexsoft.smarthouse.utils.DateUtils.isDark;
 import static com.alexsoft.smarthouse.utils.DateUtils.roundDateTime;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 public class DateUtilsTest {
+
+    // Miami sunrise in May ≈ 06:28 ET, sunset ≈ 19:53 ET
+
+    @Test
+    void isDark_middleOfNight_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T02:00")), is(true));
+    }
+
+    @Test
+    void isDark_beforeSunrise_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T05:00")), is(true));
+    }
+
+    @Test
+    void isDark_morningAfterSunrise_returnsFalse() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T09:00")), is(false));
+    }
+
+    @Test
+    void isDark_afternoon_returnsFalse() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T14:00")), is(false));
+    }
+
+    @Test
+    void isDark_eveningBeforeSunset_returnsFalse() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T18:00")), is(false));
+    }
+
+    @Test
+    void isDark_lateEveningAfterSunset_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T21:00")), is(true));
+    }
+
+    @Test
+    void isDark_justBeforeMidnight_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T23:59")), is(true));
+    }
+
+    @Test
+    void isDark_justAfterMidnight_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-04T00:01")), is(true));
+    }
+
+    // Regression test for the specific bug: 11:46 PM ET was incorrectly returning false,
+    // causing the http OFF command to skip the lock-until-morning rule.
+    @Test
+    void isDark_regressionBugAt2346_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-05-03T23:46")), is(true));
+    }
+
+    @Test
+    void isDark_winterMiddleOfDay_returnsFalse() {
+        assertThat(isDark(LocalDateTime.parse("2026-01-15T13:00")), is(false));
+    }
+
+    @Test
+    void isDark_winterEarlyMorning_returnsTrue() {
+        assertThat(isDark(LocalDateTime.parse("2026-01-15T06:00")), is(true));
+    }
 
     @ParameterizedTest
     @MethodSource
