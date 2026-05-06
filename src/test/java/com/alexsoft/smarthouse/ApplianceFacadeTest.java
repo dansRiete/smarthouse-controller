@@ -236,6 +236,52 @@ class ApplianceFacadeTest {
         assertThat(light.getState(), is(OFF));
     }
 
+    private Appliance acAppliance(com.alexsoft.smarthouse.enums.ApplianceState initialState, double setting) {
+        Appliance a = new Appliance();
+        a.setCode("AC");
+        a.setState(initialState, UTC.minusHours(1));
+        a.setSetting(setting);
+        return a;
+    }
+
+    // AC ON with mismatched running_state → sends setting-2 as cooling setpoint
+    @Test
+    void acSetpoint_whenOn_sendsSettingMinusTwo() {
+        Appliance ac = acAppliance(ON, 24.0);
+        facade.updateAcRunningState("idle");
+
+        facade.sendAcSetpointIfUnconfirmed(ac);
+
+        verify(messageSenderService).sendMessage(
+                eq("zigbee2mqtt/ac-thermostat/set"),
+                eq("{\"occupied_cooling_setpoint\": 22.0}"));
+    }
+
+    // AC OFF with mismatched running_state → sends setting+2 as cooling setpoint
+    @Test
+    void acSetpoint_whenOff_sendsSettingPlusTwo() {
+        Appliance ac = acAppliance(OFF, 24.0);
+        facade.updateAcRunningState("cooling");
+
+        facade.sendAcSetpointIfUnconfirmed(ac);
+
+        verify(messageSenderService).sendMessage(
+                eq("zigbee2mqtt/ac-thermostat/set"),
+                eq("{\"occupied_cooling_setpoint\": 26.0}"));
+    }
+
+    // AC running_state already confirmed → skip sending setpoint
+    @Test
+    void acSetpoint_whenConfirmed_skipsMessage() {
+        Appliance ac = acAppliance(ON, 24.0);
+        facade.updateAcRunningState("cooling");
+
+        facade.sendAcSetpointIfUnconfirmed(ac);
+
+        verify(messageSenderService, never()).sendMessage(
+                eq("zigbee2mqtt/ac-thermostat/set"), any());
+    }
+
     // No lock set when state doesn't change
     @Test
     void noLock_whenStateUnchanged() {
