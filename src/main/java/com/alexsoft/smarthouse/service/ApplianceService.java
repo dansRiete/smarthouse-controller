@@ -161,6 +161,10 @@ public class ApplianceService {
         }
         if (!appliance.isLocked()) {
             applianceFacade.toggle(appliance, appliance.getState(), utc, "pwr-control", true);
+        } else if (!appliance.getCode().equals("AC")) {
+            // reinforce current state even when locked so physical state stays in sync;
+            // skip AC — thermostat is sensitive to numerous messages
+            applianceFacade.sendState(appliance);
         } else {
             applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
         }
