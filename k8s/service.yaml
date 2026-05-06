@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: smarthouse-controller
   namespace: smarthouse
+  labels:
+    app: smarthouse-controller
 spec:
   selector:
     app: smarthouse-controller
