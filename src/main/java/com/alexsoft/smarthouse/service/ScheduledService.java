@@ -37,16 +37,25 @@ public class ScheduledService {
     private String measurementTopic;
 
     // SIMULATED LEAK — remove after heap dump practice
-    private static final List<byte[]> LEAK = new ArrayList<>();
+    record SensorReading(String sensorId, String location, double value, String unit, String timestamp, byte[] payload) {}
+
+    private static final List<SensorReading> LEAK = new ArrayList<>();
     private static final long LEAK_CAP_BYTES = 1024L * 1024 * 1024; // 1 GB
     private static long leakSize = 0;
 
     @Scheduled(fixedDelay = 500)
     public void simulateLeak() {
         if (leakSize < LEAK_CAP_BYTES) {
-            byte[] chunk = new byte[1024 * 1024]; // 1 MB
-            LEAK.add(chunk);
-            leakSize += chunk.length;
+            byte[] payload = new byte[1024 * 1024]; // 1 MB
+            LEAK.add(new SensorReading(
+                    "sensor-" + LEAK.size(),
+                    "living-room",
+                    20.0 + (LEAK.size() % 10),
+                    "celsius",
+                    DateUtils.getUtc().toString(),
+                    payload
+            ));
+            leakSize += payload.length;
         }
     }
 
