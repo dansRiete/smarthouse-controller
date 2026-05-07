@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -36,28 +35,6 @@ public class ScheduledService {
     @Value("${mqtt.topic}")
     private String measurementTopic;
 
-    // SIMULATED LEAK — remove after heap dump practice
-    record SensorReading(String sensorId, String location, double value, String unit, String timestamp, byte[] payload) {}
-
-    private static final List<SensorReading> LEAK = new ArrayList<>();
-    private static final long LEAK_CAP_BYTES = 1024L * 1024 * 1024; // 1 GB
-    private static long leakSize = 0;
-
-    @Scheduled(fixedDelay = 500)
-    public void simulateLeak() {
-        if (leakSize < LEAK_CAP_BYTES) {
-            byte[] payload = new byte[1024 * 1024]; // 1 MB
-            LEAK.add(new SensorReading(
-                    "sensor-" + LEAK.size(),
-                    "living-room",
-                    20.0 + (LEAK.size() % 10),
-                    "celsius",
-                    DateUtils.getUtc().toString(),
-                    payload
-            ));
-            leakSize += payload.length;
-        }
-    }
 
     @Scheduled(cron = "0 * * * * *")
     @Transactional
