@@ -178,6 +178,67 @@ Two thread pools handle scheduled work:
 | `BtcService` WebClient (CoinGecko) | — | 10s (`block()`) |
 | MQTT outbound handler | — | 5s (`completionTimeout`) |
 
+## Monitoring
+
+- **Prometheus**: `http://192.168.0.201:30090` (NodePort)
+- **Grafana**: `http://192.168.0.201:30300` (NodePort), user `admin`
+  - Password stored in k8s secret: `kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d`
+
+### Key Grafana dashboards
+
+| Priority | Dashboard | UID | Use for |
+|---|---|---|---|
+| ★★★ | JVM (Micrometer) | `advf7j4` | Heap, GC pauses, threads, HikariCP pool — primary app health |
+| ★★★ | Kubernetes / Compute Resources / Pod | `6581e46e4e5c7ba40a07646395ef7b23` | Per-pod CPU & memory (pick `smarthouse-controller`); catches off-heap growth |
+| ★★★ | Kubernetes / Compute Resources / Namespace (Pods) | `85a562078cdf77779eaa1add43ccec1e` | All `smarthouse` pods side-by-side; correlate app spikes with DB/MQTT pressure |
+| ★★☆ | Node Exporter / Nodes | `7d57716318ee0dddbac5a7f451fb7753` | Host (i7-4770k) CPU, RAM, disk, network — total machine pressure |
+| ★★☆ | Node Exporter / USE Method / Node | `fac67cfbe174d3ef53eb473d73d9212f` | Quick host health: Utilization / Saturation / Errors per resource |
+| ★★☆ | Kubernetes / Persistent Volumes | `919b92a8e8041bd567af9edab12c840c` | Disk usage for Postgres and InfluxDB PVCs — catch full-disk before it kills the DB |
+| ★☆☆ | Kubernetes / Networking / Pod | `7a18067ce943a40ae25454675c19ff5c` | Per-pod network traffic; check if METAR/CoinGecko/MQTT traffic is anomalous |
+- **Metrics endpoint**: `http://<pod-ip>:24867/smarthouse/actuator/prometheus`
+- **ServiceMonitor**: `k8s/servicemonitor.yaml` — scrapes `smarthouse` namespace, port `24867`, interval 15s
+- **Micrometer tag**: `application=smarthouse` (set in `application.yml` under `management.metrics.tags`)
+
+### Grafana dashboard gotcha
+
+The JVM (Micrometer) dashboard imported from Grafana.com uses `${DS_PROMETHEUS}` as a datasource placeholder. When imported, this is NOT automatically resolved. All panels and template variables must have their datasource set to `{"type": "prometheus", "uid": "prometheus"}` explicitly — otherwise dropdowns populate but panels show no data.
+
+### Querying Prometheus for troubleshooting
+
+All app metrics carry labels `application="smarthouse"`, `instance="192.168.0.201:24867"`, `job="smarthouse-controller"`.
+
+**Instant query (curl):**
+```bash
+curl -s 'http://192.168.0.201:30090/api/v1/query?query=<expr>' | python3 -m json.tool
+```
+**Range query:**
+```bash
+curl -s 'http://192.168.0.201:30090/api/v1/query_range?query=<expr>&start=<unix>&end=<unix>&step=60'
+```
+
+#### Available metric groups
+
+| Group | Key metrics | Notes |
+|---|---|---|
+| **JVM GC** | `jvm_gc_pause_seconds_{count,sum,max}`, `jvm_gc_overhead`, `jvm_gc_concurrent_phase_time_seconds_*`, `jvm_gc_memory_allocated_bytes_total`, `jvm_gc_memory_promoted_bytes_total`, `jvm_gc_live_data_size_bytes` | G1GC; use `rate()` on `_total` counters |
+| **JVM Memory** | `jvm_memory_used_bytes`, `jvm_memory_committed_bytes`, `jvm_memory_max_bytes`, `jvm_memory_usage_after_gc` | Filter by `area="heap"` / `area="nonheap"` and `id` label |
+| **JVM Threads** | `jvm_threads_live_threads`, `jvm_threads_peak_threads`, `jvm_threads_states_threads` | `state` label: runnable, blocked, waiting, etc. |
+| **JVM Classes/Buffers** | `jvm_classes_loaded_classes`, `jvm_buffer_memory_used_bytes` | |
+| **DB pool (HikariCP)** | `hikaricp_connections_active`, `hikaricp_connections_pending`, `hikaricp_connections_timeout_total`, `hikaricp_connections_acquire_seconds_*` | Proxy for DB health — no pg_exporter installed |
+| **HTTP server** | `http_server_requests_seconds_{count,sum,max}` | Labels: `uri`, `method`, `status` |
+| **HTTP client** | `http_client_requests_seconds_{count,sum,max}` | Outbound calls (AVWX, CoinGecko, etc.) |
+| **Process** | `process_cpu_usage`, `process_resident_memory_bytes`, `process_uptime_seconds`, `process_files_open_files` | JVM process on the node |
+
+> **PostgreSQL internals are NOT exposed.** There is no pg_exporter — `node_vmstat_pgfault` etc. are Linux page-fault counters, unrelated to Postgres. To investigate DB issues use HikariCP metrics + application logs.
+
+### Remote kubectl access
+
+The k8s cluster runs on `192.168.0.201` — all workloads (app, Prometheus, Grafana, DB, MQTT, etc.) are deployed there. Do NOT try to run `kubectl` or access cluster services locally; always SSH to the server:
+
+```bash
+ssh 192.168.0.201 "kubectl get pods -n smarthouse"
+```
+
 ## DB Migration Scripts
 
 Located in `src/dbscript/`. Naming: `V{timestamp}_{description}.sql`. Applied manually (not Flyway). Run against `main` schema on `192.168.0.201:24870`.
@@ -201,3 +262,52 @@ SELECT utc_time, value FROM main.indication_v3
 WHERE location_id = 'mb-lis-outdoor' AND measurement_type = 'illuminance'
 ORDER BY utc_time DESC LIMIT 1;
 ```
+
+## Release Process
+
+**Pipeline**: push to `master` → GitHub Actions (self-hosted runner) → Docker build (runs tests) → push to `ghcr.io/dansriete/smarthouse-controller` → `kubectl set image` → rollout wait.
+
+ArgoCD also watches `master` and syncs k8s manifests automatically (`k8s/` directory, excludes `argocd-app.yaml`).
+
+### Before committing
+
+All new or updated logic must be covered by unit tests. When adding a feature or changing behaviour, write or update the corresponding tests in `src/test/` before committing. Tests that were valid for the old behaviour must be updated to reflect the new one — do not leave stale tests in place.
+
+Always run the full test suite locally and confirm it passes before pushing:
+
+```bash
+./mvnw test
+```
+
+Tests run inside the Docker build too (no `-DskipTests`), so a failing test will break the pipeline and block deployment.
+
+### Deployment steps
+
+1. Run `./mvnw test` — must be green
+2. Commit and push to `master`
+3. GitHub Actions builds the image, tags it with the commit SHA and `latest`, pushes to GHCR
+4. Action then runs `kubectl set image` in the `smarthouse` namespace and waits up to 5 minutes for rollout
+5. Pod health is verified via the actuator readiness probe at `/smarthouse/actuator/health`
+
+To check deployment status manually:
+
+```bash
+ssh 192.168.0.201 "kubectl rollout status deployment/smarthouse-controller -n smarthouse"
+ssh 192.168.0.201 "kubectl logs -n smarthouse deployment/smarthouse-controller --tail=50"
+```
+
+## Code Style
+
+Follows **Google Java Style Guide** with one project-specific override:
+
+| Rule | Value |
+|---|---|
+| Column limit | **160 characters** (Google default is 100) |
+| Indentation | 2 spaces (block indent), 4 spaces (continuation) |
+| Braces | Always used — even for single-statement bodies |
+| Naming | `camelCase` methods/variables, `PascalCase` classes, `UPPER_SNAKE_CASE` constants |
+| Imports | No wildcard imports; static imports allowed for enums and utility methods (e.g. `ApplianceState.ON`, `DateUtils.getUtc`) |
+| Annotations | One per line, on the line above the declaration |
+| Blank lines | One blank line between methods; no trailing blank lines in blocks |
+
+When writing or editing Java code, keep lines within 160 characters. Prefer breaking after opening parentheses or before binary operators when wrapping is needed.

@@ -6,9 +6,11 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface IndicationRepositoryV3 extends JpaRepository<IndicationV3, Integer> {
     List<IndicationV3> findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(List<String> locationIds, LocalDateTime utc, String measurementType);
+    Optional<IndicationV3> findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(String locationId, String measurementType);
     List<IndicationV3> findByUtcTimeBetween(LocalDateTime startDate, LocalDateTime endDate);
     List<IndicationV3> findByLocalTimeBetweenAndMeasurementType(LocalDateTime startDate, LocalDateTime endDate, String measurementType);
 

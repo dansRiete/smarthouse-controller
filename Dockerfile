@@ -1,7 +1,7 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 COPY . .
-RUN ./mvnw clean package -DskipTests
+RUN ./mvnw clean package
 
 FROM eclipse-temurin:21-jdk
 WORKDIR /app

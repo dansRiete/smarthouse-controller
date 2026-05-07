@@ -32,31 +32,23 @@ public class ScheduledService {
     private final IndicationServiceV3 indicationServiceV3;
     private final MessageSenderService messageSenderService;
 
-    @Value("${mqtt.topic}")
-    private String measurementTopic;
-
 
     @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void checkDehPowerAnomaly() {
         applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
             if (deh.getState() != ON) return;
-            LocalDateTime windowStart = getUtc().minusMinutes(5);
-            if (deh.getSwitchedOn() != null && deh.getSwitchedOn().isAfter(windowStart)) {
-                windowStart = deh.getSwitchedOn();
-            }
-            List<IndicationV3> readings = indicationRepositoryV3
-                    .findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                            List.of("DEH"), windowStart, "power");
-            if (readings.size() < 20) return;
-            double avg = readings.stream().mapToDouble(IndicationV3::getValue).average().orElse(0);
-            if (avg < 50) {
-                log.warn("deh.power.anomaly: state=ON but avg power={}W over last 5min — alerting", avg);
-                //  todo create an appliance_group e.g. ALLERTABLE_LIGHTS and assign in the DB instead of hardcoding here
-                messageSenderService.sendMessage("zigbee2mqtt/MB-LOTV/set", "{\"effect\": \"blink\"}");
-                messageSenderService.sendMessage("zigbee2mqtt/LR-LUTV/set", "{\"effect\": \"blink\"}");
-                messageSenderService.sendMessage("zigbee2mqtt/MB-LOB/set", "{\"effect\": \"blink\"}");
-            }
+            if (deh.getSwitchedOn() == null || deh.getSwitchedOn().isAfter(getUtc().minusMinutes(5))) return;
+            indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEH", "power")
+                    .ifPresent(last -> {
+                        if (last.getValue() < 50) {
+                            log.warn("deh.power.anomaly: state=ON but last power reading={}W — alerting", last.getValue());
+                            //  todo create an appliance_group e.g. ALERTABLE_LIGHTS and assign in the DB instead of hardcoding here
+                            messageSenderService.sendMessage("zigbee2mqtt/MB-LOTV/set", "{\"effect\": \"blink\"}");
+                            messageSenderService.sendMessage("zigbee2mqtt/LR-LUTV/set", "{\"effect\": \"blink\"}");
+                            messageSenderService.sendMessage("zigbee2mqtt/MB-LOB/set", "{\"effect\": \"blink\"}");
+                        }
+                    });
         });
     }
 
