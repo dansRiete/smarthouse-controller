@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class ApplianceServicePwrControlTest {
@@ -40,6 +41,33 @@ class ApplianceServicePwrControlTest {
     @Mock EventRepository eventRepository;
 
     @InjectMocks ApplianceService applianceService;
+
+    private Appliance acOn() {
+        Appliance a = new Appliance();
+        a.setCode("AC");
+        a.setState(ON, LocalDateTime.now());
+        a.setSetting(25.0);
+        a.setHysteresisOn(0.5);
+        a.setHysteresisOff(1.0);
+        a.setReferenceSensors(List.of("mb-sensor"));
+        a.setMeasurementType("temperature");
+        a.setAveragePeriodMinutes(60);
+        a.setMetricType("temperature");
+        return a;
+    }
+
+    private Appliance acOff() {
+        Appliance a = acOn();
+        a.setState(OFF, LocalDateTime.now());
+        return a;
+    }
+
+    private void mockAcAvg(Appliance ac, double value) {
+        when(applianceRepository.findById("AC")).thenReturn(Optional.of(ac));
+        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+                anyList(), any(), anyString()))
+                .thenReturn(List.of(IndicationV3.builder().value(value).build()));
+    }
 
     private Appliance lightOff() {
         Appliance a = new Appliance();
@@ -129,10 +157,53 @@ class ApplianceServicePwrControlTest {
         verify(applianceFacade).toggle(any(), eq(ON), any(), eq("pwr-control"), eq(true));
     }
 
+    // AC locked ON — sendState must be called every cycle so custom MQTT reinforces physical state
+    @Test
+    void ac_lockedOn_sendStateCalledEachCycle() {
+        Appliance ac = acOn();
+        ac.setLocked(true);
+        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59)); // far future, survives any UTC offset
+
+        mockAcAvg(ac, 26.0); // above threshold, irrelevant — locked
+
+        applianceService.powerControl("AC");
+
+        verify(applianceFacade).sendState(ac);
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
+
+    // AC locked OFF — same: sendState must reinforce the OFF state every cycle
+    @Test
+    void ac_lockedOff_sendStateCalledEachCycle() {
+        Appliance ac = acOff();
+        ac.setLocked(true);
+        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59)); // far future, survives any UTC offset
+
+        mockAcAvg(ac, 23.0); // below threshold, irrelevant — locked
+
+        applianceService.powerControl("AC");
+
+        verify(applianceFacade).sendState(ac);
+        verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
+    }
+
+    // AC unlocked, avg above on-threshold, already ON — sendState reinforces without toggling
+    @Test
+    void ac_unlocked_onCondition_stateAlreadyOn_callsSendState() {
+        Appliance ac = acOn();
+
+        mockAcAvg(ac, 26.0); // avg 26 > setting 25 + hysteresisOn 0.5 → onCondition
+
+        applianceService.powerControl("AC");
+
+        verify(applianceFacade).sendState(ac);
+        verify(applianceFacade, never()).toggle(any(), eq(ON), any(), any(), anyBoolean());
+    }
+
     // Inverted light locked OFF overnight. Lock expires but illuminance is already above threshold —
-    // offCondition is met but state is already OFF, so no toggle. sendState must still be called
-    // immediately on lock expiry so the dim-glow (brightness=20) clears right away without waiting
-    // for illuminance to drift back through the neutral zone.
+    // offCondition is met but state is already OFF, so no toggle. sendState is called twice:
+    // once immediately on lock expiry (line 84) and once because offCondition is satisfied with state
+    // already correct (line 142). Both calls reinforce the physical state without toggling.
     @Test
     void lockExpiry_brightIlluminance_callsSendStateWithoutToggle() {
         Appliance light = lightOff();
@@ -146,7 +217,7 @@ class ApplianceServicePwrControlTest {
 
         applianceService.powerControl("MB-LOB");
 
-        verify(applianceFacade).sendState(any());
+        verify(applianceFacade, times(2)).sendState(any());
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
 }

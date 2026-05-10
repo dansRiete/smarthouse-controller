@@ -134,12 +134,12 @@ public class ApplianceService {
                         if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
                             logPwrControlDecision(appliance, ON, average, utc);
                             if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
-                            else applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
+                            else applianceFacade.sendState(appliance);
                             return;
                         } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
                             logPwrControlDecision(appliance, OFF, average, utc);
                             if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
-                            else applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
+                            else applianceFacade.sendState(appliance);
                             return;
                         }
 
@@ -161,12 +161,8 @@ public class ApplianceService {
         }
         if (!appliance.isLocked()) {
             applianceFacade.toggle(appliance, appliance.getState(), utc, "pwr-control", true);
-        } else if (!appliance.getCode().equals("AC")) {
-            // reinforce current state even when locked so physical state stays in sync;
-            // skip AC — thermostat is sensitive to numerous messages
-            applianceFacade.sendState(appliance);
         } else {
-            applianceFacade.sendAcSetpointIfUnconfirmed(appliance);
+            applianceFacade.sendState(appliance);
         }
     }
 
