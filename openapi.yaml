@@ -1,0 +1,658 @@
+openapi: 3.0.3
+info:
+  title: Smarthouse Controller API
+  description: |
+    REST API for the SmartHouse home automation backend.
+    Base URL: `http://192.168.0.201:24867/smarthouse`
+  version: 1.0.0
+
+servers:
+  - url: http://192.168.0.201:24867/smarthouse
+    description: Local server
+
+tags:
+  - name: Appliances
+    description: Appliance state, locking, and settings
+  - name: Indications
+    description: Sensor measurement storage and aggregation
+  - name: FCM
+    description: Firebase push notification token management
+  - name: Status
+    description: Status bar and HTML summary views
+
+paths:
+
+  # ── Appliances ──────────────────────────────────────────────────────────────
+
+  /appliances:
+    get:
+      tags: [Appliances]
+      summary: List all appliances
+      description: Returns all appliances. Logs an `http.request` event with requester ID and client IP.
+      operationId: getAllAppliances
+      parameters:
+        - name: requesterId
+          in: query
+          required: false
+          description: Identifies the caller (e.g. `android-app`, `linux-app`). Logged in the event table.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of all appliances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appliance"
+
+  /appliances/{applianceCode}:
+    patch:
+      tags: [Appliances]
+      summary: Partially update an appliance
+      description: |
+        Updates one or more fields of the named appliance. Each supported key is processed
+        independently in order. Unsupported keys return 400.
+
+        Supported keys:
+        - `state` — `"ON"` or `"OFF"`. Triggers `ApplianceFacade.toggle()` + post-commit power control cycle.
+        - `locked` — boolean. Sets lock flag; logs `http.locked` event.
+        - `lockedUntil` — `"yyyyMMdd-HHmm"` (UTC). If a lock already exists, the duration is **added** to it rather than replacing it. Send `"null"` (string) to clear. Logs `http.lockedUntil` or `http.lockedUntil.cleared`.
+        - `setting` — numeric, `"+"` (increment by 0.25), or `"-"` (decrement by 0.25).
+        - `hysteresisOn` — numeric threshold for turning ON.
+        - `hysteresisOff` — numeric threshold for turning OFF.
+        - `powerSetting` — numeric dimmer level (0–100).
+        - `consumptionKwh` — numeric, current energy consumption.
+        - `description` — string label.
+        - `referenceSensors` — array of location IDs used as input for power control.
+      operationId: patchAppliance
+      parameters:
+        - name: applianceCode
+          in: path
+          required: true
+          description: Appliance code (e.g. `AC`, `DEH`, `LR-LUTV`)
+          schema:
+            type: string
+        - name: requesterId
+          in: query
+          required: false
+          description: Identifies the caller. Logged in the event table.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppliancePatchRequest"
+            examples:
+              turnOn:
+                summary: Turn appliance on
+                value: { "state": "ON" }
+              turnOff:
+                summary: Turn appliance off
+                value: { "state": "OFF" }
+              lockFor30m:
+                summary: Lock until 30 minutes from now (UTC)
+                value: { "lockedUntil": "20260101-1430" }
+              clearLock:
+                summary: Clear existing lock
+                value: { "lockedUntil": "null" }
+              increaseSetting:
+                summary: Increment setting by 0.25
+                value: { "setting": "+" }
+              setSetting:
+                summary: Set setting to explicit value
+                value: { "setting": 25.0 }
+              setDimmer:
+                summary: Set power/dimmer level
+                value: { "powerSetting": 75.0 }
+      responses:
+        "200":
+          description: Updated appliance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appliance"
+        "400":
+          description: Unsupported field key in request body
+        "404":
+          description: Appliance not found
+
+  # ── Indications ─────────────────────────────────────────────────────────────
+
+  /indications:
+    post:
+      tags: [Indications]
+      summary: Save a sensor indication
+      description: |
+        Persists an `IndicationV3` record. Also automatically computes and saves
+        rolling 1-day (`{type}-1d`) and 30-day (`{type}-30d`) aggregates for the
+        same `locationId` and `measurementType`.
+        Returns the current MBS status string.
+      operationId: createIndication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndicationV3"
+            example:
+              locationId: "mbs"
+              measurementType: "milato"
+              value: 42.5
+              localTime: "2026-05-11T14:00:00"
+              utcTime: "2026-05-11T18:00:00"
+      responses:
+        "200":
+          description: MBS status string after saving
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /indications/mbs/reprocess:
+    post:
+      tags: [Indications]
+      summary: Reprocess MBS history from bundled CSV
+      description: |
+        Reads `init_mbs.csv` from the classpath, parses historical MBS measurements
+        (milato, bellion, suitan, whelmet, batrumt), and reinserts them with rolling
+        aggregates. Used for one-time data migration.
+      operationId: reprocessMbs
+      responses:
+        "200":
+          description: Success message
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "CSV data successfully parsed and inserted."
+        "500":
+          description: Error reading or parsing the CSV
+
+  /indications/aggregate:
+    get:
+      tags: [Indications]
+      summary: Trigger indication aggregation
+      description: Runs a DB aggregation pass for the given period over `indication_v2` records.
+      operationId: aggregateIndications
+      parameters:
+        - name: period
+          in: query
+          required: true
+          description: Aggregation period (e.g. `hourly`, `daily`, `monthly`)
+          schema:
+            type: string
+        - name: greaterThanId
+          in: query
+          required: false
+          description: Only aggregate records with ID greater than this value
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Count of aggregated records
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Aggregated 120 indications"
+
+  /indications/influx-sync:
+    post:
+      tags: [Indications]
+      summary: Sync indications to InfluxDB
+      description: Syncs PostgreSQL `indication` records to InfluxDB in 1-day chunks within the given range.
+      operationId: influxSync
+      parameters:
+        - name: startDate
+          in: query
+          required: false
+          description: Start of sync range (ISO datetime, e.g. `2026-01-01T00:00:00`)
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          required: false
+          description: End of sync range (ISO datetime)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Sync initiated (no response body)
+
+  # ── FCM ─────────────────────────────────────────────────────────────────────
+
+  /fcm/register:
+    post:
+      tags: [FCM]
+      summary: Register a Firebase Cloud Messaging token
+      description: Stores or updates an FCM device token so the server can send push notifications to it.
+      operationId: registerFcmToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FcmRegisterRequest"
+            example:
+              token: "fcm-device-token-abc123"
+              deviceName: "Pixel 9"
+      responses:
+        "200":
+          description: Token registered
+        "400":
+          description: Missing or blank token
+
+  /fcm/send:
+    post:
+      tags: [FCM]
+      summary: Send a push notification to all registered devices
+      description: Broadcasts an alert message via Firebase to all stored FCM tokens.
+      operationId: sendFcmAlert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FcmSendRequest"
+            example:
+              title: "Humidity Alert"
+              body: "Absolute humidity exceeded 12 g/m³"
+      responses:
+        "200":
+          description: FCM send result string
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Status ───────────────────────────────────────────────────────────────────
+
+  /status-bar:
+    get:
+      tags: [Status]
+      summary: Get status bar string
+      description: Returns a compact summary string suitable for display in a status bar or menu bar widget.
+      operationId: getStatusBar
+      responses:
+        "200":
+          description: Status bar text
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /v2/summary:
+    get:
+      tags: [Status]
+      summary: Sensor summary chart (v2, HTML)
+      description: |
+        Returns an HTML page rendered by Thymeleaf with temperature, humidity, AQI charts.
+        When `place` and `period` are both omitted, returns the default aggregated view.
+      operationId: summaryV2
+      parameters:
+        - name: place
+          in: query
+          required: false
+          description: Sensor location/place filter
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          description: Aggregation period (e.g. `day`, `week`)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v3/summary:
+    get:
+      tags: [Status]
+      summary: Sensor summary chart (v3, HTML)
+      description: |
+        Returns an HTML page with `indication_v3`-based charts.
+        `locations` takes precedence over `place` when both are provided.
+      operationId: summaryV3
+      parameters:
+        - name: place
+          in: query
+          required: false
+          description: Single location ID filter (legacy; use `locations` instead)
+          schema:
+            type: string
+        - name: locations
+          in: query
+          required: false
+          description: Comma-separated location IDs (overrides `place`)
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          description: Aggregation period
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+# ── Components ────────────────────────────────────────────────────────────────
+
+components:
+  schemas:
+
+    Appliance:
+      type: object
+      description: A controllable home appliance or sensor-driven automation entity.
+      properties:
+        code:
+          type: string
+          description: Unique identifier (e.g. `AC`, `DEH`, `LR-LUTV`)
+          example: AC
+        description:
+          type: string
+          nullable: true
+          description: Human-readable label
+          example: Air Conditioner
+        applianceGroup:
+          $ref: "#/components/schemas/ApplianceGroup"
+        state:
+          $ref: "#/components/schemas/ApplianceState"
+        consumptionKwh:
+          type: number
+          format: double
+          nullable: true
+          description: Last known power consumption in kWh
+        locked:
+          type: boolean
+          description: Whether automatic power control is currently suppressed
+          example: false
+        lockedUntilUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC datetime until which the appliance is locked (null = indefinite lock or unlocked)
+          example: "2026-05-11T22:00:00"
+        setting:
+          type: number
+          format: double
+          nullable: true
+          description: Control setpoint (temperature °C, absolute humidity g/m³, or illuminance lux)
+          example: 25.0
+        scheduledSetting:
+          type: number
+          format: double
+          nullable: true
+          description: Currently active scheduled setpoint override (read-only)
+        actual:
+          type: number
+          format: double
+          nullable: true
+          description: Most recently measured value from the reference sensor
+        metricType:
+          type: string
+          nullable: true
+          description: Human-readable metric label (e.g. `temperature`, `humidity`)
+        units:
+          type: string
+          nullable: true
+          description: Display unit string (e.g. `°C`, `g/m³`, `lux`)
+        hysteresisOn:
+          type: number
+          format: double
+          nullable: true
+          description: Hysteresis band for turning ON (setting − hysteresisOn triggers ON)
+        hysteresisOff:
+          type: number
+          format: double
+          nullable: true
+          description: Hysteresis band for turning OFF (setting + hysteresisOff triggers OFF)
+        referenceSensors:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: Location IDs of sensors whose readings drive power control
+          example: ["mb-lis-outdoor"]
+        measurementType:
+          type: string
+          nullable: true
+          description: Measurement type key read from `indication_v3` (e.g. `temperature`, `illuminance`)
+        averagePeriodMinutes:
+          type: integer
+          nullable: true
+          description: Minutes of sensor history averaged for power control decisions
+        inverted:
+          type: boolean
+          nullable: true
+          description: |
+            When true, logic is inverted: ON when value < setting−hysteresis, OFF when value > setting+hysteresis.
+            Used for lights (turn ON when it gets dark).
+        minimumOnCycleMinutes:
+          type: integer
+          nullable: true
+          description: Minimum number of minutes the appliance must stay ON after being switched on
+        minimumOffCycleMinutes:
+          type: integer
+          nullable: true
+          description: Minimum number of minutes the appliance must stay OFF after being switched off
+        zigbee2MqttTopic:
+          type: string
+          nullable: true
+          description: Zigbee2MQTT topic used to control this appliance (e.g. `zigbee2mqtt/lr-sp-dehumidifier/set`)
+        switched:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp of the last state change
+        switchedOn:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp of the last ON transition
+        switchedOff:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp of the last OFF transition
+        durationOnMinutes:
+          type: number
+          format: double
+          nullable: true
+          description: Duration of the last ON cycle in minutes
+        durationOffMinutes:
+          type: number
+          format: double
+          nullable: true
+          description: Duration of the last OFF cycle in minutes
+        sensorControlled:
+          type: boolean
+          nullable: true
+          description: Whether the appliance is driven by sensor data automatically
+        dimmable:
+          type: boolean
+          nullable: true
+          description: Whether the appliance supports dimmer/power-level control
+        powerSetting:
+          type: number
+          format: double
+          nullable: true
+          description: Dimmer level 0–100 (only relevant when `dimmable` is true)
+        schedule:
+          type: object
+          nullable: true
+          description: |
+            Per-day/hour setting overrides. Structure:
+            `{ "MON": { "9": "22.0/0.5", "*": "25.0/0.5" }, "*": { "*": "25.0/0.5" } }`
+            Key `"*"` matches any day or hour. Value format: `"setting/hysteresisOn"`.
+          additionalProperties: true
+        displayStatus:
+          type: object
+          nullable: true
+          description: Arbitrary key-value pairs for display purposes
+          additionalProperties:
+            type: string
+
+    ApplianceGroup:
+      type: object
+      nullable: true
+      description: A group that appliances can belong to (e.g. ALGHTS — all illuminance-controlled lights).
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          example: ALGHTS
+        description:
+          type: string
+          nullable: true
+        turnOnHours:
+          type: string
+          nullable: true
+          description: Comma-separated hours (Eastern) when the group may be turned on
+        turnOffHours:
+          type: string
+          nullable: true
+          description: Hour (Eastern) after which the group is forced off
+          example: "22"
+
+    ApplianceState:
+      type: string
+      enum: [ON, OFF]
+      description: Current power state of the appliance
+
+    AppliancePatchRequest:
+      type: object
+      description: |
+        Free-form map of fields to update. All keys are optional; at least one must be provided.
+        Unsupported keys cause a 400 error.
+      properties:
+        state:
+          $ref: "#/components/schemas/ApplianceState"
+        locked:
+          type: boolean
+          description: Set or clear the locked flag (indefinite lock)
+        lockedUntil:
+          type: string
+          description: |
+            UTC datetime string in `yyyyMMdd-HHmm` format to lock until.
+            If a lock already exists, the duration is **added** to it.
+            Pass the string `"null"` to clear the lock time.
+          example: "20260511-2200"
+        setting:
+          description: |
+            Numeric setpoint, or the strings `"+"` / `"-"` to step by ±0.25.
+          oneOf:
+            - type: number
+              format: double
+            - type: string
+              enum: ["+", "-"]
+        hysteresisOn:
+          type: number
+          format: double
+        hysteresisOff:
+          type: number
+          format: double
+        powerSetting:
+          type: number
+          format: double
+          description: Dimmer level 0–100
+        consumptionKwh:
+          type: number
+          format: double
+        description:
+          type: string
+        referenceSensors:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+
+    IndicationV3:
+      type: object
+      description: A single sensor measurement record.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          description: Auto-generated database ID
+        utcTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Measurement timestamp in UTC
+        localTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Measurement timestamp in local (Eastern) time
+        measurementType:
+          type: string
+          nullable: true
+          description: |
+            Type of measurement. Standard types from room sensors:
+            `temperature`, `humidity`, `illuminance`, `pressure`, `ah` (absolute humidity).
+            MBS types: `milato`, `bellion`, `suitan`, `whelmet`, `batrumt`
+            (and their `-1d` / `-30d` rolling aggregate variants).
+          example: temperature
+        locationId:
+          type: string
+          nullable: true
+          description: Sensor location identifier (e.g. `935-CORKWOOD-MB`, `mb-lis-outdoor`, `mbs`)
+          example: "935-CORKWOOD-MB"
+        publisherId:
+          type: string
+          nullable: true
+          description: MQTT publisher ID (e.g. `ESP8266-<MAC>`)
+        mqttTopic:
+          type: string
+          nullable: true
+          description: MQTT topic the message arrived on
+        unit:
+          type: string
+          nullable: true
+          description: Unit of measurement (e.g. `°C`, `%`, `lux`, `mmHg`)
+        value:
+          type: number
+          format: double
+          nullable: true
+          description: Measured value
+
+    FcmRegisterRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Firebase device registration token
+        deviceName:
+          type: string
+          description: Human-readable device name
+          default: unknown
+
+    FcmSendRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Notification title
+          default: "Smarthouse Alert"
+        body:
+          type: string
+          description: Notification body text
+          default: ""
