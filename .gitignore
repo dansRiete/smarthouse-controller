@@ -27,3 +27,4 @@ target/
 *.pid
 .aider*
 firebase-service-account.json
+workspace/

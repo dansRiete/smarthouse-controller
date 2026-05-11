@@ -1,6 +1,6 @@
 # Smarthouse Controller
 
-Spring Boot IoT home automation backend running on a home server (i7-4770k, 192.168.0.201).
+Spring Boot IoT home automation backend. Collects data from home IoT sensors and external sources, persists it in PostgreSQL, and applies automation rules (MQTT, scheduling, alerts). Runs on a home server (i7-4770k, 192.168.0.201).
 
 ## Infrastructure
 
@@ -105,3 +105,29 @@ All manifests live in `k8s/`. ArgoCD syncs this folder to the `smarthouse` names
 | `service.yaml` | smarthouse-controller ClusterIP service |
 | `namespace.yaml` | smarthouse namespace |
 | `argocd-app.yaml` | ArgoCD Application definition |
+
+## Database operations
+
+### Dump & restore
+
+```bash
+# Dump a table (compressed)
+docker exec -i smarthouse-db pg_dump -U smarthouse -d smarthouse --table="main.indication_v3" --data-only | gzip > ~/indication_v3.sql.gz
+
+# Restore
+gunzip -c ~/Downloads/indication_v3.sql.gz | psql -U smarthouse -d smarthouse -h localhost -p 24870
+
+# Reset sequence after restore
+SELECT setval('main.indication_sq_v3', <last_id>);
+```
+
+### InfluxDB sync
+
+```bash
+# Full resync from indication_v3
+influx delete --bucket smarthouse-bucket --org Home --start 1970-01-01T00:00:00Z --stop 2100-01-01T00:00:00Z
+curl -X POST '192.168.0.201:24867/smarthouse/indications/influx-sync'
+
+# Partial resync (date range)
+curl -X POST '192.168.0.201:24867/smarthouse/indications/influx-sync?startDate=2025-10-17T00%3A00%3A00&endDate=2025-10-27T00%3A00%3A00'
+```
