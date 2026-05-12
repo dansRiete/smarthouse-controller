@@ -42,7 +42,7 @@ public class BtcService {
         LocalDateTime etTimestamp = utcTimestamp.atZone(ZoneId.of("UTC")).withZoneSameInstant(ZoneId.of("America/New_York")).toLocalDateTime();
         Btc btc = Btc.builder().timestampUtc(utcTimestamp).timestampEt(etTimestamp).price(btcPrice).build();
         IndicationV3 indication = IndicationV3.builder()
-            .locationId("btc")
+            .locationId("BTC")
             .measurementType("money")
             .unit("usd")
             .value(btcPrice)
