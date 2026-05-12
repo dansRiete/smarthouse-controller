@@ -1,8 +1,7 @@
 package com.alexsoft.smarthouse.service;
 
-import com.alexsoft.smarthouse.entity.*;
-import com.alexsoft.smarthouse.enums.AggregationPeriod;
-import com.alexsoft.smarthouse.enums.InOut;
+import com.alexsoft.smarthouse.entity.Btc;
+import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.repository.BtcRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,58 +14,62 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class BtcService {
 
-    private final WebClient webClient = WebClient.create("https://api.coingecko.com/api/v3");
+  private final WebClient webClient = WebClient.create("https://api.coingecko.com/api/v3");
 
-    private final BtcRepository btcRepository;
-    private final IndicationService indicationService;
+  private final BtcRepository btcRepository;
+  private final IndicationServiceV3 indicationServiceV3;
 
-    @Async("ioTaskExecutor")
-    @Scheduled(fixedDelay = 60000)
-    public void getBtcRate() {
-        try {
-            Double btcPrice = webClient.get()
-                    .uri("/simple/price?ids=bitcoin&vs_currencies=usd")
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .map(this::parseBtcPrice)
-                    .block(Duration.ofSeconds(10));
+  @Async("ioTaskExecutor")
+  @Scheduled(fixedDelay = 60000)
+  public void getBtcRate() {
+    try {
+      Double btcPrice = webClient.get()
+          .uri("/simple/price?ids=bitcoin&vs_currencies=usd")
+          .retrieve()
+          .bodyToMono(String.class)
+          .map(this::parseBtcPrice)
+          .block(Duration.ofSeconds(10));
 
-            if (btcPrice != null) {
-                LocalDateTime utcTimestamp = Instant.now().atZone(ZoneId.of("UTC")).toLocalDateTime();
-                LocalDateTime etTimestamp = utcTimestamp.atZone(ZoneId.of("UTC")).withZoneSameInstant(ZoneId.of("America/New_York")).toLocalDateTime();
-                Btc btc = Btc.builder().timestampUtc(utcTimestamp).timestampEt(etTimestamp).price(btcPrice).build();
-                Indication indication = Indication.builder().inOut(InOut.OUT).indicationPlace("BTC").aggregationPeriod(AggregationPeriod.INSTANT).issued(etTimestamp)
-                        .publisherId("coingecko.com").receivedUtc(utcTimestamp).receivedLocal(etTimestamp).air(Air.builder().temp(Temp.builder().celsius(btcPrice)
-                                .build()).build()).build();
-                indicationService.save(indication, null);
-                btcRepository.save(btc);
-            }
+      if (btcPrice != null) {
+        LocalDateTime utcTimestamp = Instant.now().atZone(ZoneId.of("UTC")).toLocalDateTime();
+        LocalDateTime etTimestamp = utcTimestamp.atZone(ZoneId.of("UTC")).withZoneSameInstant(ZoneId.of("America/New_York")).toLocalDateTime();
+        Btc btc = Btc.builder().timestampUtc(utcTimestamp).timestampEt(etTimestamp).price(btcPrice).build();
+        IndicationV3 indication = IndicationV3.builder()
+            .locationId("btc")
+            .measurementType("money")
+            .unit("usd")
+            .value(btcPrice)
+            .publisherId("coingecko.com")
+            .utcTime(utcTimestamp)
+            .localTime(etTimestamp)
+            .build();
+        indicationServiceV3.saveAll(List.of(indication));
+        btcRepository.save(btc);
+      }
 
-        } catch (Exception ex) {
-           log.error("Error fetching BTC rate: " + ex.getMessage());
-        }
+    } catch (Exception ex) {
+      log.error("Error fetching BTC rate: " + ex.getMessage());
     }
+  }
 
-
-    private Double parseBtcPrice(String response) {
-        try {
-            String prefix = "\"usd\":";
-            int startIndex = response.indexOf(prefix) + prefix.length();
-            int endIndex = response.indexOf("}", startIndex);
-            double btcPrice = Double.parseDouble(response.substring(startIndex, endIndex));
-            log.info("BTC price: {}", btcPrice);
-            return btcPrice;
-        } catch (Exception ex) {
-            log.error("Error parsing BTC price: " + ex.getMessage(), ex);
-            return null;
-        }
+  private Double parseBtcPrice(String response) {
+    try {
+      String prefix = "\"usd\":";
+      int startIndex = response.indexOf(prefix) + prefix.length();
+      int endIndex = response.indexOf("}", startIndex);
+      double btcPrice = Double.parseDouble(response.substring(startIndex, endIndex));
+      log.info("BTC price: {}", btcPrice);
+      return btcPrice;
+    } catch (Exception ex) {
+      log.error("Error parsing BTC price: " + ex.getMessage(), ex);
+      return null;
     }
-
-
+  }
 }

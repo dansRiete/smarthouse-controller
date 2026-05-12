@@ -3,7 +3,10 @@ package com.alexsoft.smarthouse;
 import com.alexsoft.smarthouse.entity.Appliance;
 import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.EventRepository;
-import com.alexsoft.smarthouse.service.*;
+import com.alexsoft.smarthouse.service.ApplianceFacade;
+import com.alexsoft.smarthouse.service.ApplianceService;
+import com.alexsoft.smarthouse.service.IndicationServiceV3;
+import com.alexsoft.smarthouse.service.MessageReceiverService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +28,6 @@ import static org.mockito.Mockito.*;
 class MessageReceiverServiceTest {
 
     @Mock ApplianceService applianceService;
-    @Mock IndicationService indicationService;
     @Mock IndicationServiceV3 indicationServiceV3;
     @Mock EventRepository eventRepository;
     @Mock ApplianceFacade applianceFacade;
