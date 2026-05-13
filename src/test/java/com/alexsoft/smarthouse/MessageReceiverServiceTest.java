@@ -99,4 +99,37 @@ class MessageReceiverServiceTest {
 
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
+
+    @Test
+    void vibrationTrue_savesIndicationAs1() {
+        when(applianceService.getApplianceByCode(anyString())).thenReturn(Optional.empty());
+        when(applianceService.getApplianceByZigbeeTopic(anyString())).thenReturn(Optional.empty());
+
+        handler.handleMessage(mqttMessage("zigbee2mqtt/0xa4c138b53c1c52c4", "{\"vibration\":true}"));
+
+        verify(indicationServiceV3).saveAll(argThat(iterable -> {
+            java.util.List<com.alexsoft.smarthouse.entity.IndicationV3> list = new java.util.ArrayList<>();
+            iterable.forEach(list::add);
+            return list.size() == 1
+                && list.get(0).getMeasurementType().equals("vibration")
+                && list.get(0).getValue() == 1.0
+                && list.get(0).getLocationId().equals("0xa4c138b53c1c52c4");
+        }));
+    }
+
+    @Test
+    void vibrationFalse_savesIndicationAs0() {
+        when(applianceService.getApplianceByCode(anyString())).thenReturn(Optional.empty());
+        when(applianceService.getApplianceByZigbeeTopic(anyString())).thenReturn(Optional.empty());
+
+        handler.handleMessage(mqttMessage("zigbee2mqtt/0xa4c138b53c1c52c4", "{\"vibration\":false}"));
+
+        verify(indicationServiceV3).saveAll(argThat(iterable -> {
+            java.util.List<com.alexsoft.smarthouse.entity.IndicationV3> list = new java.util.ArrayList<>();
+            iterable.forEach(list::add);
+            return list.size() == 1
+                && list.get(0).getMeasurementType().equals("vibration")
+                && list.get(0).getValue() == 0.0;
+        }));
+    }
 }

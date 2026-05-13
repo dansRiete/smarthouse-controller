@@ -171,6 +171,11 @@ public class MessageReceiverService {
             indicationV3s.add(indicationV3Builder.measurementType("illuminance").unit("lux")
                 .value(getValue(String.valueOf(map.get("illuminance")))).build());
           }
+          if (map.containsKey("vibration")) {
+            Object raw = map.get("vibration");
+            double vibrationValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
+            indicationV3s.add(indicationV3Builder.measurementType("vibration").unit("bool").value(vibrationValue).build());
+          }
           if (map.containsKey("temperature")) {
             Double temperature = getValue(String.valueOf(map.get("temperature")));
             indicationV3s.add(indicationV3Builder.measurementType("temp").unit("c")
