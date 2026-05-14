@@ -3,6 +3,7 @@ package com.alexsoft.smarthouse;
 import com.alexsoft.smarthouse.entity.Appliance;
 import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
+import com.alexsoft.smarthouse.service.ApplianceFacade;
 import com.alexsoft.smarthouse.service.ApplianceService;
 import com.alexsoft.smarthouse.service.IndicationServiceV3;
 import com.alexsoft.smarthouse.service.MessageSenderService;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.*;
 class ScheduledServiceDehPowerAnomalyTest {
 
     @Mock ApplianceService applianceService;
+    @Mock ApplianceFacade applianceFacade;
     @Mock IndicationRepositoryV3 indicationRepositoryV3;
     @Mock IndicationServiceV3 indicationServiceV3;
     @Mock MessageSenderService messageSenderService;

@@ -77,7 +77,7 @@ public class ApplianceService {
                 LOGGER.info("pwr-control for {} executed, avg: {}, setting: {}, hysteresisOn: {}, hysteresisOff: {}",
                         appliance.getCode(), average, appliance.getSetting(), appliance.getHysteresisOn(), appliance.getHysteresisOff());
 
-                sendAvgMessage(appliance, average, utc, toLocalDateTime(utc));
+                saveAverageIndication(appliance, average, utc, toLocalDateTime(utc));
                 boolean wasLocked = appliance.isLocked();
                 checkLock(appliance, utc);
                 if (wasLocked && !appliance.isLocked()) {
@@ -95,40 +95,6 @@ public class ApplianceService {
 
                     //  control based ong avg setting
                     if (appliance.getSetting() != null) {
-                        if (appliance.getCode().equals("AC") && appliance.getState() == OFF) {
-                            Appliance fan = applianceRepository.findById("FAN").orElseThrow();
-                            LocalDateTime now = toLocalDateTime(utc);
-                            boolean fanNeedsToBeTurnedOn;
-                            if (now.getHour() > 22 || now.getHour() < 8) {
-                                // night time
-                                fanNeedsToBeTurnedOn = List.of(26,27,28,29,56,57,58,59)
-                                        .contains(now.getMinute());
-                            } else {
-                                // day time
-                                fanNeedsToBeTurnedOn = List.of(17,18,19,37,38,39,57,58,59)
-                                        .contains(now.getMinute());
-                            }
-
-                            LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
-                            OptionalDouble avgDehPowerConsumption = indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(List.of("DEH"),
-                                    averageStart, "power").stream().mapToDouble(IndicationV3::getValue).average();
-                            if (avgDehPowerConsumption.isPresent() && avgDehPowerConsumption.getAsDouble() > 500) {
-                                if (fanNeedsToBeTurnedOn) {
-                                    applianceFacade.toggle(fan, ON , utc, "deh-on", true);
-                                    indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
-                                            .locationId("935-CORKWOOD-FAN").value(1.0).build());
-                                } else {
-                                    applianceFacade.toggle(fan, OFF , utc, "deh-on", true);
-                                    indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
-                                            .locationId("935-CORKWOOD-FAN").value(0.0).build());
-                                }
-                            } else {
-                                applianceFacade.toggle(fan, OFF , utc, "deh-on", true);
-                                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(now).utcTime(utc)
-                                        .locationId("935-CORKWOOD-FAN").value(0.0).build());
-
-                            }
-                        }
                         boolean onCondition  = average > appliance.getSetting() + appliance.getHysteresisOn();
                         boolean offCondition = average < appliance.getSetting() - appliance.getHysteresisOff();
                         if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
@@ -198,7 +164,7 @@ public class ApplianceService {
                 .data(Map.of("decision", decision.name().toLowerCase(), "avg", average, "setting", appliance.getSetting(), "hysteresisOn", appliance.getHysteresisOn(), "hysteresisOff", appliance.getHysteresisOff())).build());
     }
 
-    private void sendAvgMessage(Appliance appliance, Double average, LocalDateTime utc, LocalDateTime now) {
+    private void saveAverageIndication(Appliance appliance, Double average, LocalDateTime utc, LocalDateTime now) {
         String metricType = appliance.getMetricType();
         if (metricType.equals("temp") || metricType.equals("humidity")) {
             String type = metricType.equals("humidity") ? "ah" : "temp";
@@ -223,6 +189,11 @@ public class ApplianceService {
     @Transactional
     public Optional<Appliance> getApplianceByCode(String code) {
         return applianceRepository.findById(code);
+    }
+
+    @Transactional
+    public Optional<Appliance> getApplianceByCodeReadOnly(String code) {
+        return applianceRepository.findByIdForRead(code);
     }
 
     @Transactional

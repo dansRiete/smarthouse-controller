@@ -20,4 +20,7 @@ public interface ApplianceRepository extends JpaRepository<Appliance, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Appliance> findByZigbee2MqttTopicStartingWith(String topicPrefix);
 
+    @Query("SELECT a FROM Appliance a WHERE a.code = :code")
+    Optional<Appliance> findByIdForRead(@Param("code") String code);
+
 }

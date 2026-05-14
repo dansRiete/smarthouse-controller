@@ -1,6 +1,7 @@
 package com.alexsoft.smarthouse.service;
 
 import com.alexsoft.smarthouse.entity.IndicationV3;
+import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.utils.DateUtils;
 import lombok.RequiredArgsConstructor;
@@ -15,10 +16,13 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
+import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
 import static com.alexsoft.smarthouse.utils.DateUtils.getLocalDateTime;
 import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.utils.DateUtils.toLocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class ScheduledService {
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
     private final ApplianceService applianceService;
+    private final ApplianceFacade applianceFacade;
     private final IndicationRepositoryV3 indicationRepositoryV3;
     private final IndicationServiceV3 indicationServiceV3;
     private final MessageSenderService messageSenderService;
@@ -55,6 +60,34 @@ public class ScheduledService {
     @Scheduled(cron = "0/10 * * * * ?")
     public void powerControl() {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
+    }
+
+    @Scheduled(cron = "0 * * * * *")
+    @Transactional
+    public void controlFanForDeh() {
+        applianceService.getApplianceByCodeReadOnly("AC").ifPresent(ac -> {
+            if (ac.getState() != OFF) return;
+
+            LocalDateTime utc = getUtc();
+            LocalDateTime now = toLocalDateTime(utc);
+            boolean fanNeedsToBeTurnedOn;
+            if (now.getHour() > 22 || now.getHour() < 8) {
+                fanNeedsToBeTurnedOn = List.of(26, 27, 28, 29, 56, 57, 58, 59).contains(now.getMinute());
+            } else {
+                fanNeedsToBeTurnedOn = List.of(17, 18, 19, 37, 38, 39, 57, 58, 59).contains(now.getMinute());
+            }
+
+            LocalDateTime averageStart = utc.minus(Duration.ofMinutes(ac.getAveragePeriodMinutes()));
+            OptionalDouble avgDehPower = indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+                    List.of("DEH"), averageStart, "power").stream().mapToDouble(IndicationV3::getValue).average();
+
+            applianceService.getApplianceByCode("FAN").ifPresent(fan -> {
+                ApplianceState target = avgDehPower.isPresent() && avgDehPower.getAsDouble() > 500 && fanNeedsToBeTurnedOn ? ON : OFF;
+                applianceFacade.toggle(fan, target, utc, "deh-on", true);
+                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
+                        .localTime(now).utcTime(utc).locationId("935-CORKWOOD-FAN").value(target == ON ? 1.0 : 0.0).build());
+            });
+        });
     }
 
     @Scheduled(cron = "*/5 * * * * *")
