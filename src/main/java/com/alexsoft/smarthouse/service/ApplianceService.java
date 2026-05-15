@@ -19,6 +19,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import jakarta.transaction.Transactional;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -53,8 +54,8 @@ public class ApplianceService {
             if (Integer.parseInt(turnOffHour) == event.getHour()) {
                 List<Appliance> affected = applianceRepository.findAll().stream()
                         .filter(app -> app.getApplianceGroup().filter(gr -> gr.equals(group)).isPresent())
-                        .collect(Collectors.toList());
-                List<String> codes = affected.stream().map(Appliance::getCode).collect(Collectors.toList());
+                        .toList();
+                List<String> codes = affected.stream().map(Appliance::getCode).toList();
                 eventRepository.save(Event.builder().utcTime(utc)
                         .type("group.%s.turn-off-hours.triggered".formatted(group.getCode()))
                         .data(Map.of("hour", event.getHour(), "appliances", codes)).build());
@@ -67,72 +68,50 @@ public class ApplianceService {
     public void powerControl(String applianceCode) {
         LocalDateTime utc = getUtc();
         Appliance appliance = applianceRepository.findById(applianceCode).orElseThrow();
+        appliance.setActual(null);
+        checkScheduledSetting(appliance);
+        checkLock(appliance, utc);
 
-        if (CollectionUtils.isNotEmpty(appliance.getReferenceSensors())) {
-            OptionalDouble averageOptional = calculateAverage(appliance, utc).stream().mapToDouble(IndicationV3::getValue).average();
-
-            if (averageOptional.isPresent()) {
-                double average = averageOptional.getAsDouble();
-                appliance.setActual(average);
-                LOGGER.info("pwr-control for {} executed, avg: {}, setting: {}, hysteresisOn: {}, hysteresisOff: {}",
-                        appliance.getCode(), average, appliance.getSetting(), appliance.getHysteresisOn(), appliance.getHysteresisOff());
-
-                saveAverageIndication(appliance, average, utc, toLocalDateTime(utc));
-                boolean wasLocked = appliance.isLocked();
-                checkLock(appliance, utc);
-                if (wasLocked && !appliance.isLocked()) {
-                    applianceFacade.sendState(appliance);
-                }
-
-                if (!appliance.isLocked()) {
-
-                    //  overwrite manual changed setting
-                    Double scheduledSetting = appliance.determineScheduledSetting();    //  todo doublecheck this logic, seemed like didn't work well with AC heating mode
-                    if (scheduledSetting != null && !Objects.equals(appliance.getScheduledSetting(), scheduledSetting)) {
-                        appliance.setScheduledSetting(scheduledSetting);
-                        appliance.setSetting(scheduledSetting);
+        OptionalDouble averageOptional = calculateAverage(appliance, utc).stream().mapToDouble(IndicationV3::getValue).average();
+        if (averageOptional.isPresent()) {
+            double average = averageOptional.getAsDouble();
+            appliance.setActual(average);
+            saveAverageIndication(appliance, average, utc, toLocalDateTime(utc));
+            if (!appliance.isLocked() && appliance.getSetting() != null) {
+                boolean onCondition = average > appliance.getSetting() + appliance.getHysteresisOn();
+                boolean offCondition = average < appliance.getSetting() - appliance.getHysteresisOff();
+                if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
+                    logPwrControlDecision(appliance, ON, average, utc);
+                    if (appliance.getState() != ON) {
+                        applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
                     }
-
-                    //  control based ong avg setting
-                    if (appliance.getSetting() != null) {
-                        boolean onCondition  = average > appliance.getSetting() + appliance.getHysteresisOn();
-                        boolean offCondition = average < appliance.getSetting() - appliance.getHysteresisOff();
-                        if (Boolean.TRUE.equals(appliance.getInverted()) ? offCondition : onCondition) {
-                            logPwrControlDecision(appliance, ON, average, utc);
-                            if (appliance.getState() != ON) applianceFacade.toggle(appliance, ON, utc, "pwr-control", true);
-                            else applianceFacade.sendState(appliance);
-                            return;
-                        } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
-                            logPwrControlDecision(appliance, OFF, average, utc);
-                            if (appliance.getState() != OFF) applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
-                            else applianceFacade.sendState(appliance);
-                            return;
-                        }
-
+                } else if (Boolean.TRUE.equals(appliance.getInverted()) ? onCondition : offCondition) {
+                    logPwrControlDecision(appliance, OFF, average, utc);
+                    if (appliance.getState() != OFF) {
+                        applianceFacade.toggle(appliance, OFF, utc, "pwr-control", true);
                     }
-
-                } else {
-                    LOGGER.info("pwr-control Appliance {} is locked {}", appliance.getCode(), appliance.getLockedUntilUtc() == null ?
-                            "indefinitely" : "until " + appliance.getLockedUntilUtc());
                 }
-                LOGGER.info("pwr-control {} is {} for {} minutes", appliance.getCode(), appliance.getFormattedState(),
-                        calculateDurationSinceSwitch(appliance, utc));
-            } else {
-                appliance.setActual(null);
-                LOGGER.info("pwr-control for {} executed, indications were empty", appliance.getCode());
             }
-
-        } else {
-            LOGGER.info("pwr-control for {} executed, reference sensors list is empty, skipping power control", appliance.getCode());
-        }
-        if (!appliance.isLocked()) {
+        } else if (!appliance.isLocked()) {
             applianceFacade.toggle(appliance, appliance.getState(), utc, "pwr-control", true);
-        } else {
-            applianceFacade.sendState(appliance);
         }
+
+        applianceFacade.sendState(appliance);
+    }
+
+    private void checkScheduledSetting(Appliance appliance) {
+        Double scheduledSetting = appliance.determineScheduledSetting();    //  todo doublecheck this logic, seemed like didn't work well with AC heating mode
+        if (scheduledSetting != null && !Objects.equals(appliance.getScheduledSetting(), scheduledSetting)) {
+            appliance.setScheduledSetting(scheduledSetting);
+            appliance.setSetting(scheduledSetting);
+        }
+
     }
 
     private List<IndicationV3> calculateAverage(Appliance appliance, LocalDateTime utc) {
+        if (CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
+            return Collections.emptyList();
+        }
         LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
         return indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(appliance.getReferenceSensors(),
                 averageStart, appliance.getMeasurementType());
