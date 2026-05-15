@@ -10,7 +10,7 @@ data:
       query: |
         SELECT
           queryid::text AS queryid,
-          regexp_replace(left(query, 120), E'[\\n\\r\\t ]+', ' ', 'g') AS query_short,
+          regexp_replace(left(query, 500), E'[\\n\\r\\t ]+', ' ', 'g') AS query_short,
           calls,
           round(total_exec_time::numeric, 1)  AS total_exec_time_ms,
           round(mean_exec_time::numeric, 1)   AS mean_exec_time_ms,
@@ -27,7 +27,7 @@ data:
             description: "Query ID (hash)"
         - query_short:
             usage: "LABEL"
-            description: "Query text, first 120 chars"
+            description: "Query text, first 500 chars"
         - calls:
             usage: "GAUGE"
             description: "Total executions since last reset"
