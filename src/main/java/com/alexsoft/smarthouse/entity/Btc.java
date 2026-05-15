@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(schema = "main", name = "btc",
         indexes = {
-                @Index(name = "idx_timestamp", columnList = "timestamp"),
+                @Index(name = "idx_timestamp", columnList = "timestamp_utc"),
                 @Index(name = "idx_price", columnList = "price")
         }
 )
