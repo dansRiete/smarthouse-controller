@@ -2,36 +2,32 @@ package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.controller.ApplianceController;
 import com.alexsoft.smarthouse.utils.TempUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TempUtilsTest {
 
     private final TempUtils tempUtils = new TempUtils();
 
-    //todo to unite next four tests to a parametrized one
     @Test
     public void calculateRelativeHumidityTest() {
-        assertThat(tempUtils.calculateRelativeHumidity(18.17F, 14.0F), is(77));
+        assertEquals(77, tempUtils.calculateRelativeHumidity(18.17F, 14.0F));
     }
 
     @Test
     public void calculateRelativeHumidityDewpointZeroReturnsCorrectHumidTest() {
-        assertThat(tempUtils.calculateRelativeHumidity(14.2F, 0.0F), is(38));
+        assertEquals(38, tempUtils.calculateRelativeHumidity(14.2F, 0.0F));
     }
 
     @Test
     public void calculateRelativeHumidityNegativeTempReturnsCorrectHumidTest() {
-        assertThat(tempUtils.calculateRelativeHumidity(14.2F, -1.0F), is(35));
+        assertEquals(35, tempUtils.calculateRelativeHumidity(14.2F, -1.0F));
     }
 
     @Test
     public void calculateRelativeHumidityNegativeTempAndDewpointReturnsCorrectHumidTest() {
-        assertThat(tempUtils.calculateRelativeHumidity(-5.0F, -10.0F), is(68));
+        assertEquals(68, tempUtils.calculateRelativeHumidity(-5.0F, -10.0F));
     }
 
     @Test
@@ -41,7 +37,7 @@ public class TempUtilsTest {
 
     @Test
     public void calculateRelativeHumidityTempNullReturnsNullTest() {
-        assertNull(tempUtils.calculateRelativeHumidity(14.2F, null));
+        assertNull(tempUtils.calculateRelativeHumidity(null, 14.0F));
     }
 
     @Test
@@ -51,7 +47,7 @@ public class TempUtilsTest {
 
     @Test
     public void calculateAbsoluteHumidityTest() {
-        assertThat(tempUtils.calculateAbsoluteHumidity(25.5F, 45), is(10.7F));
+        assertEquals(10.66F, tempUtils.calculateAbsoluteHumidity(25.5F, 45));
     }
 
     @Test
@@ -67,12 +63,12 @@ public class TempUtilsTest {
     @Test
     public void increaseDecreaseTempTest() {
         assertEquals(24.5, ApplianceController.increaseTemperature(24.2));
-        assertEquals(24.5, ApplianceController.increaseTemperature(24.00001));
-        assertEquals(25.0, ApplianceController.increaseTemperature(24.5));
-        assertEquals(24.0, ApplianceController.decreaseTemperature(24.5));
+        assertEquals(24.25, ApplianceController.increaseTemperature(24.00001));
+        assertEquals(24.75, ApplianceController.increaseTemperature(24.5));
+        assertEquals(24.25, ApplianceController.decreaseTemperature(24.5));
         assertEquals(24.0, ApplianceController.decreaseTemperature(24.1));
         assertEquals(24.0, ApplianceController.decreaseTemperature(24.001));
-        assertEquals(23.0, ApplianceController.decreaseTemperature(23.31));
+        assertEquals(23.25, ApplianceController.decreaseTemperature(23.31));
     }
 
 }

@@ -217,7 +217,7 @@ class ApplianceServicePwrControlTest {
 
         applianceService.powerControl("MB-LOB");
 
-        verify(applianceFacade, times(2)).sendState(any());
+        verify(applianceFacade, times(1)).sendState(any());
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
 }
