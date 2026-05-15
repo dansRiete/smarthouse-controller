@@ -72,7 +72,7 @@ public class ApplianceService {
         checkScheduledSetting(appliance);
         checkLock(appliance, utc);
 
-        OptionalDouble averageOptional = calculateAverage(appliance, utc).stream().mapToDouble(IndicationV3::getValue).average();
+        OptionalDouble averageOptional = calculateAverage(appliance, utc);
         if (averageOptional.isPresent()) {
             double average = averageOptional.getAsDouble();
             appliance.setActual(average);
@@ -108,13 +108,14 @@ public class ApplianceService {
 
     }
 
-    private List<IndicationV3> calculateAverage(Appliance appliance, LocalDateTime utc) {
+    private OptionalDouble calculateAverage(Appliance appliance, LocalDateTime utc) {
         if (CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
-            return Collections.emptyList();
+            return OptionalDouble.empty();
         }
         LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
-        return indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(appliance.getReferenceSensors(),
-                averageStart, appliance.getMeasurementType());
+        return indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                appliance.getReferenceSensors(), averageStart, appliance.getMeasurementType())
+                .map(OptionalDouble::of).orElse(OptionalDouble.empty());
     }
 
     private static Long calculateDurationSinceSwitch(Appliance appliance, LocalDateTime utc) {

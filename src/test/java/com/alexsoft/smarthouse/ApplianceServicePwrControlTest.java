@@ -1,7 +1,6 @@
 package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.entity.Appliance;
-import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.repository.ApplianceGroupRepository;
 import com.alexsoft.smarthouse.repository.ApplianceRepository;
 import com.alexsoft.smarthouse.repository.EventRepository;
@@ -27,7 +26,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class ApplianceServicePwrControlTest {
@@ -64,9 +62,9 @@ class ApplianceServicePwrControlTest {
 
     private void mockAcAvg(Appliance ac, double value) {
         when(applianceRepository.findById("AC")).thenReturn(Optional.of(ac));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(value).build()));
+                .thenReturn(Optional.of(value));
     }
 
     private Appliance lightOff() {
@@ -90,21 +88,13 @@ class ApplianceServicePwrControlTest {
         return a;
     }
 
-    private void mockAvg(double value) {
-        when(applianceRepository.findById("MB-LOB"))
-                .thenReturn(Optional.of(value < 50 ? lightOff() : value > 100 ? lightOn() : lightOff()));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
-                anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(value).build()));
-    }
-
     // avg = 58.75 (hysteresis zone 50–100): state was OFF, must stay OFF — the bug that hit on 2026-04-07
     @Test
     void invertedAppliance_hysteresisZone_doesNotToggle() {
         when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOff()));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(58.75).build()));
+                .thenReturn(Optional.of(58.75));
 
         applianceService.powerControl("MB-LOB");
 
@@ -115,9 +105,9 @@ class ApplianceServicePwrControlTest {
     @Test
     void invertedAppliance_belowThreshold_triggersOn() {
         when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOff()));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(30.0).build()));
+                .thenReturn(Optional.of(30.0));
 
         applianceService.powerControl("MB-LOB");
 
@@ -128,9 +118,9 @@ class ApplianceServicePwrControlTest {
     @Test
     void invertedAppliance_aboveThreshold_triggersOff() {
         when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOn()));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(150.0).build()));
+                .thenReturn(Optional.of(150.0));
 
         applianceService.powerControl("MB-LOB");
 
@@ -145,9 +135,9 @@ class ApplianceServicePwrControlTest {
         light.setLockedUntilUtc(LocalDateTime.of(2020, 1, 1, 0, 0)); // clearly in the past
 
         when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(light));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(5.0).build())); // dark → would turn ON
+                .thenReturn(Optional.of(5.0)); // dark → would turn ON
 
         applianceService.powerControl("MB-LOB");
 
@@ -162,7 +152,7 @@ class ApplianceServicePwrControlTest {
     void ac_lockedOn_sendStateCalledEachCycle() {
         Appliance ac = acOn();
         ac.setLocked(true);
-        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59)); // far future, survives any UTC offset
+        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59));
 
         mockAcAvg(ac, 26.0); // above threshold, irrelevant — locked
 
@@ -177,7 +167,7 @@ class ApplianceServicePwrControlTest {
     void ac_lockedOff_sendStateCalledEachCycle() {
         Appliance ac = acOff();
         ac.setLocked(true);
-        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59)); // far future, survives any UTC offset
+        ac.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59));
 
         mockAcAvg(ac, 23.0); // below threshold, irrelevant — locked
 
@@ -200,10 +190,6 @@ class ApplianceServicePwrControlTest {
         verify(applianceFacade, never()).toggle(any(), eq(ON), any(), any(), anyBoolean());
     }
 
-    // Inverted light locked OFF overnight. Lock expires but illuminance is already above threshold —
-    // offCondition is met but state is already OFF, so no toggle. sendState is called twice:
-    // once immediately on lock expiry (line 84) and once because offCondition is satisfied with state
-    // already correct (line 142). Both calls reinforce the physical state without toggling.
     @Test
     void lockExpiry_brightIlluminance_callsSendStateWithoutToggle() {
         Appliance light = lightOff();
@@ -211,9 +197,9 @@ class ApplianceServicePwrControlTest {
         light.setLockedUntilUtc(LocalDateTime.of(2020, 1, 1, 0, 0)); // expired
 
         when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(light));
-        when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
-                .thenReturn(List.of(IndicationV3.builder().value(150.0).build())); // bright → offCondition met, state already OFF
+                .thenReturn(Optional.of(150.0)); // bright → offCondition met, state already OFF
 
         applianceService.powerControl("MB-LOB");
 
