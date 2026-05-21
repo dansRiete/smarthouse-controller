@@ -93,6 +93,22 @@ class MessageReceiverServiceTest {
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
 
+    // BUG — currently FAILS.
+    // Physical switch press must override the lock and save the new state to DB.
+    // Desired: toggle() is called regardless of lock — state persisted, lock re-evaluated by setLock().
+    // Actual: toggle() is skipped because MessageReceiverService checks !appliance.isLocked().
+    @Test
+    void lockedAppliance_physicalSwitchOn_toggleCalledOverridingLock() {
+        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.OFF);
+        appliance.setLocked(true);
+        appliance.setLockedUntilUtc(java.time.LocalDateTime.of(9999, 12, 31, 23, 59));
+        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+
+        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER-LIGHTS"), eq(false));
+    }
+
     @Test
     void bridgeTopic_doesNotTriggerToggle() {
         handler.handleMessage(mqttMessage("zigbee2mqtt/bridge/state", "{\"state\":\"online\"}"));
