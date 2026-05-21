@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodered
+  namespace: smarthouse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nodered
+  template:
+    metadata:
+      labels:
+        app: nodered
+    spec:
+      containers:
+        - name: nodered
+          image: nodered/node-red:latest
+          ports:
+            - containerPort: 1880
+          env:
+            - name: TZ
+              value: America/New_York
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: /home/alexkzk/nodered-data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodered
+  namespace: smarthouse
+spec:
+  type: NodePort
+  selector:
+    app: nodered
+  ports:
+    - port: 1880
+      targetPort: 1880
+      nodePort: 31880
