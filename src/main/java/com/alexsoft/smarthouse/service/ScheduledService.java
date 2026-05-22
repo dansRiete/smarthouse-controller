@@ -49,9 +49,9 @@ public class ScheduledService {
                         if (last.getValue() < 50) {
                             log.warn("deh.power.anomaly: state=ON but last power reading={}W — alerting", last.getValue());
                             //  todo create an appliance_group e.g. ALERTABLE_LIGHTS and assign in the DB instead of hardcoding here
-                            messageSenderService.sendMessage("zigbee2mqtt/MB-LOTV/set", "{\"effect\": \"blink\"}");
-                            messageSenderService.sendMessage("zigbee2mqtt/LR-LUTV/set", "{\"effect\": \"blink\"}");
-                            messageSenderService.sendMessage("zigbee2mqtt/MB-LOB/set", "{\"effect\": \"blink\"}");
+                            messageSenderService.sendMessage("zigbee2mqtt/LED_OVER_TV/set", "{\"effect\": \"blink\"}");
+                            messageSenderService.sendMessage("zigbee2mqtt/LED_UNDER_TV/set", "{\"effect\": \"blink\"}");
+                            messageSenderService.sendMessage("zigbee2mqtt/LED_OVER_BED/set", "{\"effect\": \"blink\"}");
                         }
                     });
         });

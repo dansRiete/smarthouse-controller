@@ -41,7 +41,7 @@ class ApplianceFacadeTest {
         ApplianceGroup group = new ApplianceGroup();
         group.setId(1);
         Appliance a = new Appliance();
-        a.setCode("MB-LOB");
+        a.setCode("LED_OVER_BED");
         a.setApplianceGroup(group);
         a.setState(initialState, UTC.minusHours(1));
         a.setMetricType("illuminance");

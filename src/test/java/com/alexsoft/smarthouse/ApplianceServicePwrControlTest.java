@@ -69,7 +69,7 @@ class ApplianceServicePwrControlTest {
 
     private Appliance lightOff() {
         Appliance a = new Appliance();
-        a.setCode("MB-LOB");
+        a.setCode("LED_OVER_BED");
         a.setState(OFF, LocalDateTime.now());
         a.setSetting(75.0);
         a.setHysteresisOn(25.0);
@@ -91,12 +91,12 @@ class ApplianceServicePwrControlTest {
     // avg = 58.75 (hysteresis zone 50–100): state was OFF, must stay OFF — the bug that hit on 2026-04-07
     @Test
     void invertedAppliance_hysteresisZone_doesNotToggle() {
-        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOff()));
+        when(applianceRepository.findById("LED_OVER_BED")).thenReturn(Optional.of(lightOff()));
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
                 .thenReturn(Optional.of(58.75));
 
-        applianceService.powerControl("MB-LOB");
+        applianceService.powerControl("LED_OVER_BED");
 
         verify(applianceFacade, never()).toggle(any(), eq(ON), any(), any(), anyBoolean());
     }
@@ -104,12 +104,12 @@ class ApplianceServicePwrControlTest {
     // avg = 30 (below threshold 50): dark enough → turn ON
     @Test
     void invertedAppliance_belowThreshold_triggersOn() {
-        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOff()));
+        when(applianceRepository.findById("LED_OVER_BED")).thenReturn(Optional.of(lightOff()));
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
                 .thenReturn(Optional.of(30.0));
 
-        applianceService.powerControl("MB-LOB");
+        applianceService.powerControl("LED_OVER_BED");
 
         verify(applianceFacade).toggle(any(), eq(ON), any(), eq("pwr-control"), eq(true));
     }
@@ -117,12 +117,12 @@ class ApplianceServicePwrControlTest {
     // avg = 150 (above threshold 100): bright enough → turn OFF
     @Test
     void invertedAppliance_aboveThreshold_triggersOff() {
-        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(lightOn()));
+        when(applianceRepository.findById("LED_OVER_BED")).thenReturn(Optional.of(lightOn()));
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
                 .thenReturn(Optional.of(150.0));
 
-        applianceService.powerControl("MB-LOB");
+        applianceService.powerControl("LED_OVER_BED");
 
         verify(applianceFacade).toggle(any(), eq(OFF), any(), eq("pwr-control"), eq(true));
     }
@@ -134,12 +134,12 @@ class ApplianceServicePwrControlTest {
         light.setLocked(true);
         light.setLockedUntilUtc(LocalDateTime.of(2020, 1, 1, 0, 0)); // clearly in the past
 
-        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(light));
+        when(applianceRepository.findById("LED_OVER_BED")).thenReturn(Optional.of(light));
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
                 .thenReturn(Optional.of(5.0)); // dark → would turn ON
 
-        applianceService.powerControl("MB-LOB");
+        applianceService.powerControl("LED_OVER_BED");
 
         assertThat(light.isLocked(), is(false));
         assertThat(light.getLockedUntilUtc(), is(nullValue()));
@@ -196,12 +196,12 @@ class ApplianceServicePwrControlTest {
         light.setLocked(true);
         light.setLockedUntilUtc(LocalDateTime.of(2020, 1, 1, 0, 0)); // expired
 
-        when(applianceRepository.findById("MB-LOB")).thenReturn(Optional.of(light));
+        when(applianceRepository.findById("LED_OVER_BED")).thenReturn(Optional.of(light));
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
                 anyList(), any(), anyString()))
                 .thenReturn(Optional.of(150.0)); // bright → offCondition met, state already OFF
 
-        applianceService.powerControl("MB-LOB");
+        applianceService.powerControl("LED_OVER_BED");
 
         verify(applianceFacade, times(1)).sendState(any());
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());

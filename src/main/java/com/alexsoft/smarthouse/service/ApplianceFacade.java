@@ -126,12 +126,12 @@ public class ApplianceFacade {
     public void sendState(Appliance appliance) {
         LocalDateTime utc = getUtc();
         if (appliance.getZigbee2MqttTopic() != null) {
-            if (appliance.getCode().equals("LR-LUTV") && (toLocalDateTime(utc).getHour() < 7 || toLocalDateTime(utc).getHour() > 21)) {
+            if (appliance.getCode().equals("LED_UNDER_TV") && (toLocalDateTime(utc).getHour() < 7 || toLocalDateTime(utc).getHour() > 21)) {
                 messageSenderService.sendMessage(appliance.getZigbee2MqttTopic(), "{\"state\": \"%s\", \"brightness\":%d}"
                         .formatted("on", appliance.getState() == ON ? 160 : 20));
             } else {
                 String brightness;
-                if (List.of("MB-LOTV", "MB-LOB", "LR-LUTV").contains(appliance.getCode())) {
+                if (List.of("LED_OVER_TV", "LED_OVER_BED", "LED_UNDER_TV").contains(appliance.getCode())) {
                     if (appliance.getPowerSetting() == null) {
                         brightness = ", \"brightness\": 160";
                     } else {
@@ -142,7 +142,7 @@ public class ApplianceFacade {
                 }
                 messageSenderService.sendMessage(appliance.getZigbee2MqttTopic(), ("{\"state\": \"%s\"" + brightness + "}")
                         .formatted(appliance.getState() == ON ? "on" : "off"));
-                if (appliance.getCode().equals("TER-LIGHTS")) {
+                if (appliance.getCode().equals("TER_LIGHTS")) {
                     messageSenderService.sendMessage("zigbee2mqtt/WRKTABLE/set", ("{\"state\": \"%s\"" + brightness + "}")
                             .formatted(appliance.getState() == ON ? "on" : "off"));
                 }

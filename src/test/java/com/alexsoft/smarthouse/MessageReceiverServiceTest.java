@@ -60,14 +60,14 @@ class MessageReceiverServiceTest {
     // message from the broker, not a real device state change. Toggle must never be triggered.
     @Test
     void setTopic_doesNotTriggerToggle() {
-        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS/set", "{\"state\":\"ON\"}"));
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER_LIGHTS/set", "{\"state\":\"ON\"}"));
 
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
     void setTopic_doesNotQueryAppliances() {
-        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS/set", "{\"state\":\"ON\"}"));
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER_LIGHTS/set", "{\"state\":\"ON\"}"));
 
         verify(applianceService, never()).getApplianceByCode(any());
         verify(applianceService, never()).getApplianceByZigbeeTopic(any());
@@ -75,20 +75,20 @@ class MessageReceiverServiceTest {
 
     @Test
     void stateTopic_triggersToggleOnStateChange() {
-        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.OFF);
-        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+        Appliance appliance = applianceWithState("TER_LIGHTS", ApplianceState.OFF);
+        when(applianceService.getApplianceByCode("TER_LIGHTS")).thenReturn(Optional.of(appliance));
 
-        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER_LIGHTS", "{\"state\":\"ON\"}"));
 
-        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER-LIGHTS"), eq(false));
+        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER_LIGHTS"), eq(false));
     }
 
     @Test
     void stateTopic_noToggleWhenStateUnchanged() {
-        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.ON);
-        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+        Appliance appliance = applianceWithState("TER_LIGHTS", ApplianceState.ON);
+        when(applianceService.getApplianceByCode("TER_LIGHTS")).thenReturn(Optional.of(appliance));
 
-        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER_LIGHTS", "{\"state\":\"ON\"}"));
 
         verify(applianceFacade, never()).toggle(any(), any(), any(), any(), anyBoolean());
     }
@@ -99,14 +99,14 @@ class MessageReceiverServiceTest {
     // Actual: toggle() is skipped because MessageReceiverService checks !appliance.isLocked().
     @Test
     void lockedAppliance_physicalSwitchOn_toggleCalledOverridingLock() {
-        Appliance appliance = applianceWithState("TER-LIGHTS", ApplianceState.OFF);
+        Appliance appliance = applianceWithState("TER_LIGHTS", ApplianceState.OFF);
         appliance.setLocked(true);
         appliance.setLockedUntilUtc(java.time.LocalDateTime.of(9999, 12, 31, 23, 59));
-        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+        when(applianceService.getApplianceByCode("TER_LIGHTS")).thenReturn(Optional.of(appliance));
 
-        handler.handleMessage(mqttMessage("zigbee2mqtt/TER-LIGHTS", "{\"state\":\"ON\"}"));
+        handler.handleMessage(mqttMessage("zigbee2mqtt/TER_LIGHTS", "{\"state\":\"ON\"}"));
 
-        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER-LIGHTS"), eq(false));
+        verify(applianceFacade).toggle(eq(appliance), eq(ApplianceState.ON), any(), eq("zigbee2mqtt/TER_LIGHTS"), eq(false));
     }
 
     @Test

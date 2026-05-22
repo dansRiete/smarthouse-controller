@@ -30,7 +30,7 @@ import static org.mockito.Mockito.*;
  * Only I/O boundaries are mocked — repositories and the MQTT sender.
  *
  * Replicates the bug: physical switch press is overridden immediately by the controller.
- *   1. TER-LIGHTS is locked OFF (rule 1 — dark, user turned it off, locked until morning)
+ *   1. TER_LIGHTS is locked OFF (rule 1 — dark, user turned it off, locked until morning)
  *   2. User presses physical switch → device publishes state=ON
  *   3. Controller receives ON, sees the appliance is locked → calls sendState(appliance)
  *   4. sendState sends {"state":"off"} back, undoing the physical input within milliseconds
@@ -62,27 +62,27 @@ class PhysicalSwitchOverrideBugTest {
     }
 
     // BUG — currently FAILS.
-    // User presses physical switch ON while TER-LIGHTS is locked OFF.
+    // User presses physical switch ON while TER_LIGHTS is locked OFF.
     // Desired: ignore the inbound message — the device will resync on the next pwr-control cycle.
-    // Actual: sendState() is called immediately, sending {"state":"off"} to zigbee2mqtt/TER-LIGHTS/set.
+    // Actual: sendState() is called immediately, sending {"state":"off"} to zigbee2mqtt/TER_LIGHTS/set.
     @Test
     void lockedOff_physicalSwitchOn_noOutboundOffSentToDevice() {
         Appliance appliance = new Appliance();
-        appliance.setCode("TER-LIGHTS");
+        appliance.setCode("TER_LIGHTS");
         appliance.setState(ApplianceState.OFF, LocalDateTime.now().minusHours(1));
         appliance.setLocked(true);
         appliance.setLockedUntilUtc(LocalDateTime.of(9999, 12, 31, 23, 59));
-        appliance.setZigbee2MqttTopic("zigbee2mqtt/TER-LIGHTS/set");
+        appliance.setZigbee2MqttTopic("zigbee2mqtt/TER_LIGHTS/set");
 
-        // "TER-LIGHTS" matches topic.split("/")[1] for "zigbee2mqtt/TER-LIGHTS"
-        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+        // "TER_LIGHTS" matches topic.split("/")[1] for "zigbee2mqtt/TER_LIGHTS"
+        when(applianceService.getApplianceByCode("TER_LIGHTS")).thenReturn(Optional.of(appliance));
 
         handler.handleMessage(MessageBuilder.withPayload("{\"state\":\"ON\"}")
-                .setHeader("mqtt_receivedTopic", "zigbee2mqtt/TER-LIGHTS")
+                .setHeader("mqtt_receivedTopic", "zigbee2mqtt/TER_LIGHTS")
                 .build());
 
         verify(messageSenderService, never()).sendMessage(
-                eq("zigbee2mqtt/TER-LIGHTS/set"), argThat(p -> p.contains("off")));
+                eq("zigbee2mqtt/TER_LIGHTS/set"), argThat(p -> p.contains("off")));
     }
 
     // Sanity check — must still PASS after the fix.
@@ -91,14 +91,14 @@ class PhysicalSwitchOverrideBugTest {
     @Test
     void unlocked_physicalSwitchOn_toggleCalled_noDirectMqttSend() {
         Appliance appliance = new Appliance();
-        appliance.setCode("TER-LIGHTS");
+        appliance.setCode("TER_LIGHTS");
         appliance.setState(ApplianceState.OFF, LocalDateTime.now().minusHours(1));
-        appliance.setZigbee2MqttTopic("zigbee2mqtt/TER-LIGHTS/set");
+        appliance.setZigbee2MqttTopic("zigbee2mqtt/TER_LIGHTS/set");
 
-        when(applianceService.getApplianceByCode("TER-LIGHTS")).thenReturn(Optional.of(appliance));
+        when(applianceService.getApplianceByCode("TER_LIGHTS")).thenReturn(Optional.of(appliance));
 
         handler.handleMessage(MessageBuilder.withPayload("{\"state\":\"ON\"}")
-                .setHeader("mqtt_receivedTopic", "zigbee2mqtt/TER-LIGHTS")
+                .setHeader("mqtt_receivedTopic", "zigbee2mqtt/TER_LIGHTS")
                 .build());
 
         verify(messageSenderService, never()).sendMessage(any(), any());

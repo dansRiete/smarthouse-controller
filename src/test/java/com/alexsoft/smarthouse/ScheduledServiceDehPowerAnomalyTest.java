@@ -117,9 +117,9 @@ class ScheduledServiceDehPowerAnomalyTest {
 
         scheduledService.checkDehPowerAnomaly();
 
-        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/MB-LOTV/set"), eq(BLINK_PAYLOAD));
-        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LR-LUTV/set"), eq(BLINK_PAYLOAD));
-        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/MB-LOB/set"), eq(BLINK_PAYLOAD));
+        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_OVER_TV/set"), eq(BLINK_PAYLOAD));
+        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
+        verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_OVER_BED/set"), eq(BLINK_PAYLOAD));
     }
 
     @Test
