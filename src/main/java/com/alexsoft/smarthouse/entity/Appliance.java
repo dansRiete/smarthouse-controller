@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.SQLRestriction;
 
 import jakarta.persistence.*;
 import java.time.Duration;
@@ -25,6 +26,7 @@ import static com.alexsoft.smarthouse.utils.DateUtils.*;
 
 @Entity
 @Table(schema = "main")
+@SQLRestriction("active = true")
 @ToString
 @Getter
 @Setter
@@ -33,6 +35,7 @@ public class Appliance {
     @Id
     private String code;
     private String description;
+    private boolean active = true;
     @ManyToOne
     @JoinColumn(name = "appliance_group_id")
     private ApplianceGroup applianceGroup;
