@@ -20,7 +20,7 @@ public class WatchdogStartupTestRunner implements CommandLineRunner {
         // Execute in a separate thread to prevent blocking main Spring Boot startup lifecycle
         new Thread(() -> {
             try {
-                Thread.sleep(15000); // Wait 15 seconds for subsystems and routes to stabilize
+                Thread.sleep(2000); // Wait 2 seconds for container network routes to settle
                 
                 log.info("Sending startup notification to registered devices...");
                 String result = fcmService.sendAlert("SmartHouse Central", "Smarthouse Backend restarted", "sound");
