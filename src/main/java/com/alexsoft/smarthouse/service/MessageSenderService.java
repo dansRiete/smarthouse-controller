@@ -32,9 +32,9 @@ public class MessageSenderService {
 
     public void sendMessage(String topic, String messagePayload) {
         try {
-            eventRepository.save(Event.builder().utcTime(getUtc()).data(OBJECT_MAPPER.readValue(messagePayload, Map.class)).type("outbound.mqtt.msg").build());
-        } catch (JsonProcessingException e) {
-            LOGGER.warn("Failed to log outbound MQTT message payload {}", messagePayload);
+            logOutboundEvent(topic, messagePayload);
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error logging outbound MQTT message: topic={}, payload={}", topic, messagePayload, e);
         }
         if (!msgSendingEnabled) {
             LOGGER.info("mqtt.msg.send.skipped: topic={}, payload={}", topic, messagePayload);
@@ -42,6 +42,49 @@ public class MessageSenderService {
         }
         LOGGER.info("mqtt.msg.send: topic={}, payload={}", topic, messagePayload);
         mqttOutboundFlow.getInputChannel().send(MessageBuilder.withPayload(messagePayload).setHeader("mqtt_topic", topic).build());
+    }
+
+    private void logOutboundEvent(String topic, String messagePayload) {
+        try {
+            Map<String, Object> data = parsePayload(messagePayload);
+            String resolvedTopic = determineTopic(topic);
+            String device = determineDevice(resolvedTopic, data);
+
+            eventRepository.save(Event.builder()
+                    .utcTime(getUtc())
+                    .data(data)
+                    .type("outbound.mqtt.msg")
+                    .mqttTopic(resolvedTopic)
+                    .device(device)
+                    .build());
+        } catch (JsonProcessingException e) {
+            LOGGER.warn("Failed to log outbound MQTT message payload {}", messagePayload);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parsePayload(String messagePayload) throws JsonProcessingException {
+        return OBJECT_MAPPER.readValue(messagePayload, Map.class);
+    }
+
+    private String determineDevice(String topic, Map<String, Object> data) {
+        if (data != null && data.containsKey("device")) {
+            Object devObj = data.get("device");
+            if (devObj != null) {
+                return devObj.toString();
+            }
+        }
+        if (topic != null && topic.startsWith("zigbee2mqtt/") && !topic.startsWith("zigbee2mqtt/bridge")) {
+            String[] parts = topic.split("/");
+            if (parts.length > 1) {
+                return parts[1];
+            }
+        }
+        return null;
+    }
+
+    private String determineTopic(String topic) {
+        return topic;
     }
 
 }
