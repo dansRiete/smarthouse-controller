@@ -27,7 +27,8 @@ public class FcmController {
     public ResponseEntity<String> sendAlert(@RequestBody Map<String, String> body) {
         String result = fcmService.sendAlert(
                 body.getOrDefault("title", "Smarthouse Alert"),
-                body.getOrDefault("body", "")
+                body.getOrDefault("body", ""),
+                body.getOrDefault("severity", "severe")
         );
         return ResponseEntity.ok(result);
     }

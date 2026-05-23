@@ -74,6 +74,11 @@ public class FcmService {
 
     @Transactional
     public String sendAlert(String title, String body) {
+        return sendAlert(title, body, "severe");
+    }
+
+    @Transactional
+    public String sendAlert(String title, String body, String severity) {
         if (FirebaseApp.getApps().isEmpty()) {
             log.warn("Firebase not initialized, skipping FCM alert");
             return "ERROR: Firebase not initialized";
@@ -89,6 +94,7 @@ public class FcmService {
                 Message message = Message.builder()
                         .putData("title", title)
                         .putData("body", body)
+                        .putData("severity", severity != null ? severity.toLowerCase() : "severe")
                         .setAndroidConfig(AndroidConfig.builder()
                                 .setPriority(AndroidConfig.Priority.HIGH)
                                 .build())

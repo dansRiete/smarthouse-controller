@@ -79,10 +79,11 @@ public class WatchdogScheduler {
             boolean shouldNotify = Boolean.TRUE.equals(aiMap.get("shouldNotify"));
             String title = (String) aiMap.getOrDefault("title", "Watchdog Alert");
             String body = (String) aiMap.getOrDefault("body", "Notification body empty");
+            String severity = (String) aiMap.getOrDefault("severity", "silent");
 
             // Step 4: Dispatch FCM alert directly if flagged by AI
             if (shouldNotify) {
-                String fcmResult = fcmService.sendAlert(title, body);
+                String fcmResult = fcmService.sendAlert(title, body, severity);
                 watchdogLog.setNotificationSent(fcmResult.contains("OK"));
             }
 

@@ -44,8 +44,14 @@ VALUES (
 2. Has the LED_UNDER_TV successfully turned ON with a brightness level of exactly 20?
 3. Are all other bedroom light states (LED_OVER_BED, LED_OVER_TV) turned OFF?
 
-If all rules pass and the bedroom is perfectly set up for night mode, output JSON with "shouldNotify" = true, title="TV LED Dimmed", and body="The LED under TV successfully dimmed to 20. Bedroom night mode verified!"
-If rules fail (e.g. brightness is not 20, or other lights are left ON), output JSON with "shouldNotify" = true, title="Watchdog Alert: Bedroom Lights Anomaly", and details of the failure in the body.',
+If all rules pass and the bedroom is perfectly set up for night mode, output JSON with "shouldNotify" = true, "severity" = "silent", title="TV LED Dimmed", and body="The LED under TV successfully dimmed to 20. Bedroom night mode verified!"
+If rules fail (e.g. brightness is not 20, or other lights are left ON), output JSON with "shouldNotify" = true, "severity" = "sound", title="Watchdog Alert: Bedroom Lights Anomaly", and details of the failure in the body.
+
+Ensure the final JSON structure strictly contains:
+- "shouldNotify": boolean
+- "severity": "silent" | "sound" | "severe"
+- "title": "string"
+- "body": "string"',
     'http://192.168.0.201:31880/probe', -- Direct internal loopback to Node-RED probe
     TRUE
 )
