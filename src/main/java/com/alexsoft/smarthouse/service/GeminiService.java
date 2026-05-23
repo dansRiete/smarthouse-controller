@@ -30,7 +30,7 @@ public class GeminiService {
             throw new IllegalStateException("Gemini API key (GEMINI_API_KEY) is not configured");
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
         try {
             // Build the prompt by appending gathered state
