@@ -82,4 +82,28 @@ class ScheduledServiceAcThresholdsTest {
         assertThat(on,  is(26.5));   // 26.0 + 0.5
         assertThat(off, is(25.0));   // 26.0 - 1.0
     }
+
+    @Test
+    void saveAcThresholds_withScheduledHysteresis() {
+        Appliance a = ac(25.0, 0.5, 1.0);
+        a.setSchedule(java.util.Map.of(
+            "*", java.util.Map.of(
+                String.valueOf(java.time.ZonedDateTime.now(java.time.ZoneId.of("America/New_York")).getHour()), "/2.0/3.0"
+            )
+        ));
+
+        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
+
+        scheduledService.saveAcThresholds();
+
+        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+        verify(indicationServiceV3, times(2)).save(captor.capture());
+
+        List<IndicationV3> saved = captor.getAllValues();
+        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+
+        assertThat(on,  is(27.0));   // 25.0 + 2.0
+        assertThat(off, is(22.0));   // 25.0 - 3.0
+    }
 }

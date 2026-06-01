@@ -106,7 +106,7 @@ public class Appliance {
     }
 
     public Double getHysteresisOff() {
-        return hysteresisOff;
+        return getScheduledOrCurrentSetting(2, hysteresisOff);
     }
 
     public Double determineScheduledSetting() {

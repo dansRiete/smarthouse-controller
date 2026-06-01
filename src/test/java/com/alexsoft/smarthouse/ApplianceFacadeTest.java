@@ -244,9 +244,9 @@ class ApplianceFacadeTest {
         return a;
     }
 
-    // AC ON with mismatched running_state → sends setting-2 as cooling setpoint
+    // AC ON with mismatched running_state → sends setting-3 as cooling setpoint
     @Test
-    void acSetpoint_whenOn_sendsSettingMinusTwo() {
+    void acSetpoint_whenOn_sendsSettingMinusThree() {
         Appliance ac = acAppliance(ON, 24.0);
         facade.updateAcRunningState("idle");
 
@@ -254,12 +254,12 @@ class ApplianceFacadeTest {
 
         verify(messageSenderService).sendMessage(
                 eq("zigbee2mqtt/ac-thermostat/set"),
-                eq("{\"occupied_cooling_setpoint\": 22.0}"));
+                eq("{\"occupied_cooling_setpoint\": 21.0}"));
     }
 
-    // AC OFF with mismatched running_state → sends setting+2 as cooling setpoint
+    // AC OFF with mismatched running_state → sends setting+3 as cooling setpoint
     @Test
-    void acSetpoint_whenOff_sendsSettingPlusTwo() {
+    void acSetpoint_whenOff_sendsSettingPlusThree() {
         Appliance ac = acAppliance(OFF, 24.0);
         facade.updateAcRunningState("cooling");
 
@@ -267,7 +267,7 @@ class ApplianceFacadeTest {
 
         verify(messageSenderService).sendMessage(
                 eq("zigbee2mqtt/ac-thermostat/set"),
-                eq("{\"occupied_cooling_setpoint\": 26.0}"));
+                eq("{\"occupied_cooling_setpoint\": 27.0}"));
     }
 
     // AC running_state already confirmed → skip sending setpoint

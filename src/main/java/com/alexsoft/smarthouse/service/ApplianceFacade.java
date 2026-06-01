@@ -169,7 +169,7 @@ public class ApplianceFacade {
             LOGGER.debug("AC running_state {} confirmed, skip sending (got={})", appliance.getState(), lastKnownAcRunningState);
             return;
         }
-        double coolingSetpoint = appliance.getState() == ON ? appliance.getSetting() - 2.0 : appliance.getSetting() + 2.0;
+        double coolingSetpoint = appliance.getState() == ON ? appliance.getSetting() - 3.0 : appliance.getSetting() + 3.0;
         LOGGER.warn("AC running_state mismatch detected: expected={}, got={} — resending setpoint={}", appliance.getState(), lastKnownAcRunningState, coolingSetpoint);
         messageSenderService.sendMessage("zigbee2mqtt/ac-thermostat/set",
                 "{\"occupied_cooling_setpoint\": %.1f}".formatted(coolingSetpoint));
