@@ -125,6 +125,7 @@ public class Appliance {
                     return defaultValue;
                 }
 
+
                 String value = getDayAndHourSetting(daySchedule, hour);
                 if (value == null) {
                     return defaultValue;
