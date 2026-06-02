@@ -6,6 +6,8 @@ import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.service.ApplianceService;
 import com.alexsoft.smarthouse.service.IndicationServiceV3;
 import com.alexsoft.smarthouse.service.ScheduledService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,6 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +34,21 @@ class ScheduledServiceAcThresholdsTest {
     @Mock IndicationServiceV3 indicationServiceV3;
 
     @InjectMocks ScheduledService scheduledService;
+
+    @BeforeEach
+    void setUp() {
+        // Set daytime clock by default
+        Appliance.clock = Clock.fixed(
+            ZonedDateTime.of(2026, 6, 1, 12, 0, 0, 0, ZoneId.of("America/New_York")).toInstant(),
+            ZoneId.of("America/New_York")
+        );
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Reset clock
+        Appliance.clock = Clock.system(ZoneId.of("America/New_York"));
+    }
 
     private Appliance ac(double setting, double hysteresisOn, double hysteresisOff) {
         Appliance a = new Appliance();
@@ -88,7 +109,7 @@ class ScheduledServiceAcThresholdsTest {
         Appliance a = ac(25.0, 0.5, 1.0);
         a.setSchedule(java.util.Map.of(
             "*", java.util.Map.of(
-                String.valueOf(java.time.ZonedDateTime.now(java.time.ZoneId.of("America/New_York")).getHour()), "/2.0/3.0"
+                String.valueOf(ZonedDateTime.now(Appliance.clock).getHour()), "/2.0/3.0"
             )
         ));
 
@@ -105,5 +126,28 @@ class ScheduledServiceAcThresholdsTest {
 
         assertThat(on,  is(27.0));   // 25.0 + 2.0
         assertThat(off, is(22.0));   // 25.0 - 3.0
+    }
+
+    @Test
+    void saveAcThresholds_nightTimeAcHysteresisOverride() {
+        // Set night time clock (11:30 PM / 23:30)
+        Appliance.clock = Clock.fixed(
+            ZonedDateTime.of(2026, 6, 1, 23, 30, 0, 0, ZoneId.of("America/New_York")).toInstant(),
+            ZoneId.of("America/New_York")
+        );
+
+        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0)));
+
+        scheduledService.saveAcThresholds();
+
+        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+        verify(indicationServiceV3, times(2)).save(captor.capture());
+
+        List<IndicationV3> saved = captor.getAllValues();
+        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+
+        assertThat(on,  is(25.25));   // 24.75 + 0.5
+        assertThat(off, is(23.00));   // 24.75 - 1.75 (night override from 1.0 to 1.75)
     }
 }

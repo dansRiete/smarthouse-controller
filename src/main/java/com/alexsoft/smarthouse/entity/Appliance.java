@@ -32,6 +32,8 @@ import static com.alexsoft.smarthouse.utils.DateUtils.*;
 @Setter
 public class Appliance {
 
+    public static java.time.Clock clock = java.time.Clock.system(ZoneId.of(APPLICATION_OPERATION_TIMEZONE));
+
     @Id
     private String code;
     private String description;
@@ -106,6 +108,21 @@ public class Appliance {
     }
 
     public Double getHysteresisOff() {
+        if ("AC".equals(code)) {
+            try {
+                ZonedDateTime zonedDateTime = ZonedDateTime.now(clock);
+                int hour = zonedDateTime.getHour();
+                if (hour >= 23 || hour < 6) {
+                    Double scheduled = getScheduledOrCurrentSetting(2, hysteresisOff);
+                    if (scheduled != null && (scheduled == 1.5 || scheduled == 1.0)) {
+                        return 1.75;
+                    }
+                    return scheduled;
+                }
+            } catch (Exception e) {
+                // fallback
+            }
+        }
         return getScheduledOrCurrentSetting(2, hysteresisOff);
     }
 
@@ -116,7 +133,7 @@ public class Appliance {
     private Double getScheduledOrCurrentSetting(int settingIndex, Double defaultValue) {
         if (schedule != null) {
             try {
-                ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of(APPLICATION_OPERATION_TIMEZONE));
+                ZonedDateTime zonedDateTime = ZonedDateTime.now(clock);
                 String day = zonedDateTime.getDayOfWeek().toString().substring(0, 3);
                 int hour = zonedDateTime.getHour();
 
