@@ -34,10 +34,10 @@ public class ApartmentAvailabilityService {
         checkAvailability();
     }
 
-    // Runs every morning at 7:00 AM
-    @Scheduled(cron = "0 0 7 * * *")
+    // Runs twice a day at 10:00 AM and 6:00 PM
+    @Scheduled(cron = "0 0 10,18 * * *")
     public void onSchedule() {
-        log.info("Running scheduled 7:00 AM apartment availability check...");
+        log.info("Running scheduled 10:00 AM / 6:00 PM apartment availability check...");
         checkAvailability();
     }
 
@@ -65,7 +65,7 @@ public class ApartmentAvailabilityService {
             }
 
             int availableCount = 0;
-            boolean found01Unit = false;
+            boolean found1065Unit = false;
 
             for (JsonNode unit : unitsNode) {
                 boolean isAvailable = unit.path("available").asBoolean(false);
@@ -74,18 +74,18 @@ public class ApartmentAvailabilityService {
 
                 if (isAvailable && !isLeased && price != null && !price.isEmpty() && !price.equals("null")) {
                     availableCount++;
-                    String unitName = unit.path("name").asText("");
-                    if (unitName.endsWith("01")) {
-                        found01Unit = true;
+                    int area = unit.path("area").asInt(0);
+                    if (area == 1065) {
+                        found1065Unit = true;
                     }
                 }
             }
 
             String body = String.format("Found %d available apartments.", availableCount);
-            if (found01Unit) {
-                body += " GOOD NEWS: An apartment ending in '01' was found!";
+            if (found1065Unit) {
+                body += " GOOD NEWS: A 1065 sqft apartment was found!";
             } else {
-                body += " No apartments ending in '01' were found.";
+                body += " No 1065 sqft apartments were found.";
             }
 
             log.info("Apartment check complete: {}", body);
