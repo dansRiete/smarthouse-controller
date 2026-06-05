@@ -89,3 +89,7 @@ spec:
       port: 5432
     - protocol: TCP
       port: 1883
+    - protocol: TCP
+      port: 1880
+    - protocol: TCP
+      port: 24867
