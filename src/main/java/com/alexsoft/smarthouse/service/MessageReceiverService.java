@@ -188,6 +188,11 @@ public class MessageReceiverService {
                         double motionValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
                         indicationV3s.add(indicationV3Builder.measurementType("motion").unit("bool").value(motionValue).build());
                     }
+                    if (map.containsKey("presence")) {
+                        Object raw = map.get("presence");
+                        double presenceValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
+                        indicationV3s.add(indicationV3Builder.measurementType("motion").unit("bool").value(presenceValue).build());
+                    }
                     if (map.containsKey("temperature")) {
                         Double temperature = getValue(String.valueOf(map.get("temperature")));
                         indicationV3s.add(indicationV3Builder.measurementType("temp").unit("c")
