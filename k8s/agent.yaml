@@ -79,3 +79,7 @@ spec:
       port: 31880 # Allow HTTP exclusively for Node-RED
     - protocol: TCP
       port: 24867 # Allow HTTP exclusively for internal smarthouse API
+    - protocol: TCP
+      port: 24870 # Allow PostgreSQL
+    - protocol: TCP
+      port: 1883 # Allow MQTT
