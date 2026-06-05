@@ -178,6 +178,16 @@ public class MessageReceiverService {
                         double vibrationValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
                         indicationV3s.add(indicationV3Builder.measurementType("vibration").unit("bool").value(vibrationValue).build());
                     }
+                    if (map.containsKey("occupancy")) {
+                        Object raw = map.get("occupancy");
+                        double occupancyValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
+                        indicationV3s.add(indicationV3Builder.measurementType("occupancy").unit("bool").value(occupancyValue).build());
+                    }
+                    if (map.containsKey("motion")) {
+                        Object raw = map.get("motion");
+                        double motionValue = (raw instanceof Boolean) ? (((Boolean) raw) ? 1.0 : 0.0) : getValue(String.valueOf(raw));
+                        indicationV3s.add(indicationV3Builder.measurementType("motion").unit("bool").value(motionValue).build());
+                    }
                     if (map.containsKey("temperature")) {
                         Double temperature = getValue(String.valueOf(map.get("temperature")));
                         indicationV3s.add(indicationV3Builder.measurementType("temp").unit("c")
