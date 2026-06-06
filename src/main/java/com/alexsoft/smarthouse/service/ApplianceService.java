@@ -6,11 +6,8 @@ import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.entity.Request;
 import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.event.HourChangedEvent;
-import com.alexsoft.smarthouse.repository.ApplianceGroupRepository;
-import com.alexsoft.smarthouse.repository.ApplianceRepository;
-import com.alexsoft.smarthouse.repository.EventRepository;
-import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
-import com.alexsoft.smarthouse.repository.RequestRepository;
+import com.alexsoft.smarthouse.repository.*;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
@@ -18,12 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
-import jakarta.transaction.Transactional;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
