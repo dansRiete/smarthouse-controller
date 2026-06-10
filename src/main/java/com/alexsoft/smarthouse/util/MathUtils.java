@@ -1,4 +1,4 @@
-package com.alexsoft.smarthouse.utils;
+package com.alexsoft.smarthouse.util;
 
 public class MathUtils {
 

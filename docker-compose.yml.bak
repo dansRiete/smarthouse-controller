@@ -1,3 +1,7 @@
+# This file used to be used before Kubernetes was set up.
+# It is just backed up in case we want to get back to an easier docker-compose deployment.
+
+
 services:
   smarthouse-controller:
     image: 'smarthouse-controller:latest'
@@ -13,8 +17,8 @@ services:
     environment:
       - JAVA_OPTS=-XX:-UseContainerSupport
       - SPRING_DATASOURCE_URL=jdbc:postgresql://smarthouse-db:5432/smarthouse
-      - SPRING_DATASOURCE_USERNAME=smarthouse
-      - SPRING_DATASOURCE_PASSWORD=smarthouse
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       # Git configuration
       - GIT_REPO_SSH=git@github.com:dansRiete/smarthouse-controller.git
@@ -31,8 +35,8 @@ services:
     image: postgres:14.5
     container_name: smarthouse-db
     environment:
-      - POSTGRES_USER=smarthouse
-      - POSTGRES_PASSWORD=smarthouse
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - '24870:5432'
     volumes:
@@ -48,11 +52,11 @@ services:
       - "8086:8086"
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=alexkzk
-      - DOCKER_INFLUXDB_INIT_PASSWORD=dHf%6*7G
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_INIT_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_INIT_PASSWORD}
       - DOCKER_INFLUXDB_INIT_ORG=Home
       - DOCKER_INFLUXDB_INIT_BUCKET=smarthouse-bucket
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=2xYlhotvYM8Gqd28aF4edw6lH64EgUoxVGVaWB7oFg00qnxKCcxdtHQ2v5sOpaBAi3AYGxkqvlaRr2_9NE7AIg==
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_INIT_ADMIN_TOKEN}
     volumes:
       - /home/alexkzk/influxdb_data:/var/lib/influxdb2
     restart: unless-stopped

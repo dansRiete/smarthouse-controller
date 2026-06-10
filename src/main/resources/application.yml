@@ -31,12 +31,12 @@ spring:
   datasource:
     url: jdbc:postgresql://${smarthouse.db.hostname}:${smarthouse.db.port}/${smarthouse.db.name}
     driver-class-name: org.postgresql.Driver
-    username: smarthouse
-    password: smarthouse
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
 
 influxdb:
   url: http://smarthouse-influxdb:8086           # Replace with the URL of your InfluxDB server
-  token: 2xYlhotvYM8Gqd28aF4edw6lH64EgUoxVGVaWB7oFg00qnxKCcxdtHQ2v5sOpaBAi3AYGxkqvlaRr2_9NE7AIg==
+  token: ${INFLUXDB_TOKEN}
   org: Home                                # Replace with your InfluxDB organization name
   bucket: smarthouse-bucket
 
@@ -69,12 +69,12 @@ mqtt:
 avwx:
   baseUri: https://avwx.rest/api
   metarSubUri: /metar/{ICAO}?options=&airport=true&reporting=true&format=json&onfail=cache
-  token: W2pxukczIQFQ4cFZDbRcHpwleKO76osWaQ5LsngVlDo
+  token: ${AVWX_TOKEN}
   metar-receiving-cron: 0 */30 * * * *
 
 flightradar24:
   baseUri: https://fr24api.flightradar24.com
-  token: aaa
+  token: ${FLIGHTRADAR24_TOKEN}
   aircraft-reading-cron: "0 */1 * * * *"
 time:
   local-time-zone: America/New_York

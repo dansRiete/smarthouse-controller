@@ -6,7 +6,7 @@ import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.entity.IndicationV3.IndicationV3Builder;
 import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.EventRepository;
-import com.alexsoft.smarthouse.utils.TempUtils;
+import com.alexsoft.smarthouse.util.TempUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ import org.springframework.messaging.MessageHandler;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import static com.alexsoft.smarthouse.utils.DateUtils.*;
+import static com.alexsoft.smarthouse.util.DateUtils.*;
 
 @Configuration
 @RequiredArgsConstructor

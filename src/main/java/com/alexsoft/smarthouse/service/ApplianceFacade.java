@@ -7,7 +7,6 @@ import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.ApplianceRepository;
 import com.alexsoft.smarthouse.repository.EventRepository;
 import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +19,7 @@ import java.util.Map;
 import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
 import static com.alexsoft.smarthouse.service.ApplianceService.MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC;
-import static com.alexsoft.smarthouse.utils.DateUtils.*;
+import static com.alexsoft.smarthouse.util.DateUtils.*;
 
 @Service
 @RequiredArgsConstructor

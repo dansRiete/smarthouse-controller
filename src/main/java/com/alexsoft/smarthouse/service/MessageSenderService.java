@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
-import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.getUtc;
 
 @Service
 @RequiredArgsConstructor

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
-import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.getUtc;
 
 @Service
 @RequiredArgsConstructor

@@ -1,4 +1,4 @@
-package com.alexsoft.smarthouse.utils;
+package com.alexsoft.smarthouse.util;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

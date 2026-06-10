@@ -1,7 +1,7 @@
 package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.controller.ApplianceController;
-import com.alexsoft.smarthouse.utils.TempUtils;
+import com.alexsoft.smarthouse.util.TempUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

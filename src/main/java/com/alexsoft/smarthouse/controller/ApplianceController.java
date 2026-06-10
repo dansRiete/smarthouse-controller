@@ -21,20 +21,31 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.getUtc;
 
+/**
+ * REST Controller for managing smart home appliances.
+ * Provides endpoints to retrieve appliances and update their state and settings.
+ */
 @RestController
 @RequestMapping("/appliances")
 @RequiredArgsConstructor
 public class ApplianceController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ApplianceController.class);
-    public static final double TEMP_CONTROLL_STEP = 0.25;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApplianceController.class);
+    public static final double TEMP_CONTROL_STEP = 0.25;
 
     private final ApplianceService applianceService;
     private final ApplianceFacade applianceFacade;
     private final EventRepository eventRepository;
 
+    /**
+     * Retrieves all appliances.
+     *
+     * @param requesterId Optional identifier of the requester.
+     * @param request     The HTTP request object.
+     * @return A list of all appliances.
+     */
     @GetMapping
     public ResponseEntity<List<Appliance>> getAllAppliances(@RequestParam(required = false) String requesterId,
                                                             HttpServletRequest request) {
@@ -46,6 +57,15 @@ public class ApplianceController {
         return ResponseEntity.ok(appliances);
     }
 
+    /**
+     * Partially updates an appliance based on the provided fields in the request body.
+     *
+     * @param applianceCode The code of the appliance to update.
+     * @param updates       A map containing the fields to update and their new values.
+     * @param requesterId   Optional identifier of the requester.
+     * @param request       The HTTP request object.
+     * @return The updated appliance, or 404 Not Found if the appliance does not exist.
+     */
     @PatchMapping("/{applianceCode}")
     @Transactional
     public ResponseEntity<Appliance> partiallyUpdateAppliance(@PathVariable String applianceCode,
@@ -117,7 +137,7 @@ public class ApplianceController {
                         break;
                     default:
                         String errorMessage = String.format("Field '%s' is not supported for updating", key);
-                        logger.warn(errorMessage);
+                        LOGGER.warn(errorMessage);
                         throw new IllegalArgumentException(errorMessage);
                 }
             });
@@ -143,16 +163,28 @@ public class ApplianceController {
     }
 
 
+    /**
+     * Increases the given temperature by the defined control step.
+     *
+     * @param currentTemperature The current temperature.
+     * @return The increased temperature rounded to the nearest half.
+     */
     public static Double increaseTemperature(Double currentTemperature) {
-        return roundToNearestHalf(currentTemperature) + TEMP_CONTROLL_STEP;
+        return roundToNearestHalf(currentTemperature) + TEMP_CONTROL_STEP;
     }
 
+    /**
+     * Decreases the given temperature by the defined control step.
+     *
+     * @param currentTemperature The current temperature.
+     * @return The decreased temperature rounded to the nearest half.
+     */
     public static Double decreaseTemperature(Double currentTemperature) {
         double roundedTemperature = roundToNearestHalf(currentTemperature);
         if (currentTemperature > roundedTemperature) {
             return roundedTemperature;
         }
-        return roundedTemperature - TEMP_CONTROLL_STEP;
+        return roundedTemperature - TEMP_CONTROL_STEP;
     }
 
     private static double roundToNearestHalf(double value) {

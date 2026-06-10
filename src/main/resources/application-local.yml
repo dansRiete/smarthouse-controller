@@ -2,8 +2,8 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:24870/smarthouse
     driver-class-name: org.postgresql.Driver
-    username: smarthouse
-    password: smarthouse
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
 
 mqtt:
   server-in: 192.168.0.201

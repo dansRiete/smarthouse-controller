@@ -3,10 +3,8 @@ package com.alexsoft.smarthouse.service;
 import com.alexsoft.smarthouse.entity.IndicationV3;
 import com.alexsoft.smarthouse.enums.ApplianceState;
 import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
-import com.alexsoft.smarthouse.utils.DateUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +18,9 @@ import java.util.OptionalDouble;
 
 import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
-import static com.alexsoft.smarthouse.utils.DateUtils.getLocalDateTime;
-import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
-import static com.alexsoft.smarthouse.utils.DateUtils.toLocalDateTime;
+import static com.alexsoft.smarthouse.util.DateUtils.getLocalDateTime;
+import static com.alexsoft.smarthouse.util.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.toLocalDateTime;
 
 @Service
 @RequiredArgsConstructor

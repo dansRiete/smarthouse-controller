@@ -21,8 +21,8 @@ import java.util.*;
 
 import static com.alexsoft.smarthouse.enums.ApplianceState.OFF;
 import static com.alexsoft.smarthouse.enums.ApplianceState.ON;
-import static com.alexsoft.smarthouse.utils.DateUtils.getUtc;
-import static com.alexsoft.smarthouse.utils.DateUtils.toLocalDateTime;
+import static com.alexsoft.smarthouse.util.DateUtils.getUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.toLocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +44,8 @@ public class ApplianceService {
     @Transactional
     public void onHourChanged(HourChangedEvent event) {
         LocalDateTime utc = getUtc();
-        applianceGroupRepository.findByTurnOffHoursIsNotNull().forEach(group -> Arrays.stream(group.getTurnOffHours().split(",")).forEach(turnOffHour -> {
+        applianceGroupRepository.findByTurnOffHoursIsNotNull().forEach(group -> Arrays.stream(group.getTurnOffHours()
+                .split(",")).forEach(turnOffHour -> {
             if (Integer.parseInt(turnOffHour) == event.getHour()) {
                 List<Appliance> affected = applianceRepository.findAll().stream()
                         .filter(app -> app.getApplianceGroup().filter(gr -> gr.equals(group)).isPresent())
@@ -93,60 +94,6 @@ public class ApplianceService {
         applianceFacade.sendState(appliance);
     }
 
-    private void checkScheduledSetting(Appliance appliance) {
-        Double scheduledSetting = appliance.determineScheduledSetting();    //  todo doublecheck this logic, seemed like didn't work well with AC heating mode
-        if (scheduledSetting != null && !Objects.equals(appliance.getScheduledSetting(), scheduledSetting)) {
-            appliance.setScheduledSetting(scheduledSetting);
-            appliance.setSetting(scheduledSetting);
-        }
-
-    }
-
-    private OptionalDouble calculateAverage(Appliance appliance, LocalDateTime utc) {
-        if (CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
-            return OptionalDouble.empty();
-        }
-        LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
-        return indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
-                appliance.getReferenceSensors(), averageStart, appliance.getMeasurementType())
-                .map(OptionalDouble::of).orElse(OptionalDouble.empty());
-    }
-
-    private static Long calculateDurationSinceSwitch(Appliance appliance, LocalDateTime utc) {
-        if (appliance.getSwitched() != null) {
-            return Math.abs(Duration.between(appliance.getSwitched(), utc).toMinutes());
-        }
-        return null;
-    }
-
-    private void checkLock(Appliance appliance, LocalDateTime utc) {
-        if (appliance.getLockedUntilUtc() != null && utc.isAfter(appliance.getLockedUntilUtc())) {
-            LocalDateTime wasLockedUntil = appliance.getLockedUntilUtc();
-            appliance.setLocked(false);
-            appliance.setLockedUntilUtc(null);
-            LOGGER.info("pwr-control '{}' has been unlocked", appliance.getDescription());
-            eventRepository.save(Event.builder().utcTime(utc)
-                    .type("lock.expired").device(appliance.getCode())
-                    .data(Map.of("wasLockedUntil", wasLockedUntil.toString())).build());
-        }
-    }
-
-    private void logPwrControlDecision(Appliance appliance, ApplianceState decision, double average, LocalDateTime utc) {
-        String type = appliance.getState() != decision ? "pwr-control.trigger" : "pwr-control.check";
-        eventRepository.save(Event.builder().utcTime(utc)
-                .type(type).device(appliance.getCode())
-                .data(Map.of("decision", decision.name().toLowerCase(), "avg", average, "setting", appliance.getSetting(), "hysteresisOn", appliance.getHysteresisOn(), "hysteresisOff", appliance.getHysteresisOff())).build());
-    }
-
-    private void saveAverageIndication(Appliance appliance, Double average, LocalDateTime utc, LocalDateTime now) {
-        String metricType = appliance.getMetricType();
-        if (metricType.equals("temp") || metricType.equals("humidity")) {
-            String type = metricType.equals("humidity") ? "ah" : "temp";
-            indicationServiceV3.save(IndicationV3.builder().locationId("935-CORKWOOD-AVG").localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
-                    .measurementType(type).value(average).build());
-        }
-    }
-
     public List<Appliance> getAllAppliances() {
         return applianceRepository.findAll();
     }
@@ -177,6 +124,54 @@ public class ApplianceService {
 
     public Appliance saveOrUpdateAppliance(Appliance appliance) {
         return applianceRepository.save(appliance);
+    }
+
+    private void checkScheduledSetting(Appliance appliance) {
+        //  todo doublecheck this logic, seemed like didn't work well with AC heating mode
+        Double scheduledSetting = appliance.determineScheduledSetting();
+        if (scheduledSetting != null && !Objects.equals(appliance.getScheduledSetting(), scheduledSetting)) {
+            appliance.setScheduledSetting(scheduledSetting);
+            appliance.setSetting(scheduledSetting);
+        }
+
+    }
+
+    private OptionalDouble calculateAverage(Appliance appliance, LocalDateTime utc) {
+        if (CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
+            return OptionalDouble.empty();
+        }
+        LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
+        return indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                        appliance.getReferenceSensors(), averageStart, appliance.getMeasurementType())
+                .map(OptionalDouble::of).orElse(OptionalDouble.empty());
+    }
+
+    private void checkLock(Appliance appliance, LocalDateTime utc) {
+        if (appliance.getLockedUntilUtc() != null && utc.isAfter(appliance.getLockedUntilUtc())) {
+            LocalDateTime wasLockedUntil = appliance.getLockedUntilUtc();
+            appliance.setLocked(false);
+            appliance.setLockedUntilUtc(null);
+            LOGGER.info("pwr-control '{}' has been unlocked", appliance.getDescription());
+            eventRepository.save(Event.builder().utcTime(utc)
+                    .type("lock.expired").device(appliance.getCode())
+                    .data(Map.of("wasLockedUntil", wasLockedUntil.toString())).build());
+        }
+    }
+
+    private void logPwrControlDecision(Appliance appliance, ApplianceState decision, double average, LocalDateTime utc) {
+        String type = appliance.getState() != decision ? "pwr-control.trigger" : "pwr-control.check";
+        eventRepository.save(Event.builder().utcTime(utc)
+                .type(type).device(appliance.getCode())
+                .data(Map.of("decision", decision.name().toLowerCase(), "avg", average, "setting", appliance.getSetting(), "hysteresisOn", appliance.getHysteresisOn(), "hysteresisOff", appliance.getHysteresisOff())).build());
+    }
+
+    private void saveAverageIndication(Appliance appliance, Double average, LocalDateTime utc, LocalDateTime now) {
+        String metricType = appliance.getMetricType();
+        if (metricType.equals("temp") || metricType.equals("humidity")) {
+            String type = metricType.equals("humidity") ? "ah" : "temp";
+            indicationServiceV3.save(IndicationV3.builder().locationId("935-CORKWOOD-AVG").localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
+                    .measurementType(type).value(average).build());
+        }
     }
 }
 

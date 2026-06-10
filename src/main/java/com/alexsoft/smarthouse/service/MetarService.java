@@ -7,7 +7,7 @@ import com.alexsoft.smarthouse.model.airplaneslive.Aircraft;
 import com.alexsoft.smarthouse.model.airplaneslive.AircraftData;
 import com.alexsoft.smarthouse.model.avwx.metar.Metar;
 import com.alexsoft.smarthouse.repository.AirspaceActivityRepository;
-import com.alexsoft.smarthouse.utils.TempUtils;
+import com.alexsoft.smarthouse.util.TempUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.CollectionUtils;
@@ -28,8 +28,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -40,8 +38,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
-import static com.alexsoft.smarthouse.utils.DateUtils.toLocalDateTimeAtZone;
-import static com.alexsoft.smarthouse.utils.DateUtils.toUtc;
+import static com.alexsoft.smarthouse.util.DateUtils.toLocalDateTimeAtZone;
+import static com.alexsoft.smarthouse.util.DateUtils.toUtc;
 
 @Service
 public class MetarService {

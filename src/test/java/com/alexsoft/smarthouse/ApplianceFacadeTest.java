@@ -8,7 +8,7 @@ import com.alexsoft.smarthouse.repository.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.service.ApplianceFacade;
 import com.alexsoft.smarthouse.service.IndicationServiceV3;
 import com.alexsoft.smarthouse.service.MessageSenderService;
-import com.alexsoft.smarthouse.utils.DateUtils;
+import com.alexsoft.smarthouse.util.DateUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
