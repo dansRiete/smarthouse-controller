@@ -2,6 +2,18 @@
 
 Spring Boot IoT home automation backend. Collects data from home IoT sensors and external sources, persists it in PostgreSQL, and applies automation rules (MQTT, scheduling, alerts). Runs on a home server (i7-4770k, 192.168.0.201).
 
+## System Structure
+
+The `smarthouse-controller` acts as the central hub of a broader home automation ecosystem:
+
+* **ESP8266 Devices (Firmware):** Custom-built ESP8266 room sensors (temperature, humidity) and actuators (AC/Fan relay controllers) that publish data and receive commands via MQTT.
+* **External Automations & Integrations:**
+  * **Node-RED:** A standalone flow builder used for decoupled automation logic (e.g., Zigbee lighting controls), interacting with the MQTT broker alongside the controller.
+  * **Home Assistant:** Acts as an external integration platform, capable of observing state and sending commands via the shared MQTT broker.
+* **Client Applications (External Users):**
+  * **Android App:** A mobile interface consuming the controller's REST API for remote management and receiving push notifications via Firebase FCM.
+  * **Linux Desktop App:** A PyQt5 system tray application that monitors current state and provides quick access to controls (like AC and locking) via the REST API.
+
 ## Infrastructure
 
 All services run in Kubernetes (k3s) in the `smarthouse` namespace.
