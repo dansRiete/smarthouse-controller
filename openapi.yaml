@@ -19,8 +19,196 @@ tags:
     description: Firebase push notification token management
   - name: Status
     description: Status bar and HTML summary views
+  - name: Interview
+    description: Technical interview coaching and scoring APIs
 
 paths:
+
+  # ── Interview ───────────────────────────────────────────────────────────────
+
+  /interview/topics:
+    get:
+      tags: [Interview]
+      summary: Get topic scoreboard
+      description: Returns the current state of topics (scoreboard) including average scores, total/attempted questions, and status.
+      operationId: getInterviewTopics
+      parameters:
+        - name: section
+          in: query
+          required: false
+          description: Filter topics by section (e.g. '14 ORM & Hibernate')
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of topics with scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewTopicScore"
+    post:
+      tags: [Interview]
+      summary: Create a new topic
+      description: Creates a new interview topic.
+      operationId: createInterviewTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewTopicRequest"
+      responses:
+        "201":
+          description: Created topic ID
+          content:
+            text/plain:
+              schema:
+                type: integer
+
+  /interview/topics/{id}:
+    patch:
+      tags: [Interview]
+      summary: Update an existing topic
+      description: Partially updates an interview topic.
+      operationId: updateInterviewTopic
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the topic
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewTopicRequest"
+      responses:
+        "200":
+          description: Topic updated successfully
+
+  /interview/questions:
+    get:
+      tags: [Interview]
+      summary: List interview questions
+      description: Returns all questions. Optionally filter by section or topic. Includes the user's latest score and notes for each question.
+      operationId: getInterviewQuestions
+      parameters:
+        - name: section
+          in: query
+          required: false
+          description: Filter questions by section (e.g. '14 ORM & Hibernate')
+          schema:
+            type: string
+        - name: topicId
+          in: query
+          required: false
+          description: Filter questions by a specific topic ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of questions with their latest scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewQuestion"
+    post:
+      tags: [Interview]
+      summary: Create a new question
+      description: Creates a new interview question.
+      operationId: createInterviewQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewQuestionRequest"
+      responses:
+        "201":
+          description: Created question ID
+          content:
+            text/plain:
+              schema:
+                type: integer
+
+  /interview/questions/{id}:
+    patch:
+      tags: [Interview]
+      summary: Update a question
+      description: Partially updates an existing interview question.
+      operationId: updateInterviewQuestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the question
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewQuestionRequest"
+      responses:
+        "200":
+          description: Question updated successfully
+
+  /interview/questions/next:
+    get:
+      tags: [Interview]
+      summary: Get the next interview question
+      description: Returns the next question to ask based on priority (Not Started topics first, then lowest score). Ensures no consecutive repeated questions.
+      operationId: getNextInterviewQuestion
+      parameters:
+        - name: section
+          in: query
+          required: true
+          description: Section to pull the question from
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The next interview question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewQuestion"
+        "404":
+          description: No more questions available for this section
+
+  /interview/questions/{id}/attempts:
+    post:
+      tags: [Interview]
+      summary: Submit a question attempt
+      description: Records a score and notes for a question attempt, and returns the updated topic score.
+      operationId: submitInterviewAttempt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the question
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewAttemptRequest"
+      responses:
+        "200":
+          description: Updated topic score after the attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewTopicScore"
 
   # ── Appliances ──────────────────────────────────────────────────────────────
 
@@ -656,3 +844,81 @@ components:
           type: string
           description: Notification body text
           default: ""
+
+    InterviewTopicScore:
+      type: object
+      properties:
+        id:
+          type: integer
+        topicName:
+          type: string
+        totalQuestions:
+          type: integer
+        attemptedQuestions:
+          type: integer
+        avgScore:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+        jdRelevance:
+          type: integer
+          nullable: true
+
+    InterviewQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+        questionText:
+          type: string
+        difficulty:
+          type: string
+        topicName:
+          type: string
+        topicId:
+          type: integer
+        score:
+          type: integer
+          nullable: true
+          description: The latest attempt score (if any)
+        notes:
+          type: string
+          nullable: true
+          description: Notes from the latest attempt
+
+    InterviewAttemptRequest:
+      type: object
+      required: [score, notes]
+      properties:
+        score:
+          type: integer
+          description: Score from 0 to 100
+        notes:
+          type: string
+          description: Feedback notes on the answer
+
+    InterviewTopicRequest:
+      type: object
+      properties:
+        section:
+          type: string
+          description: e.g. '14 ORM & Hibernate'
+        topicName:
+          type: string
+        jdRelevance:
+          type: integer
+        filePath:
+          type: string
+          description: Path to the study notes markdown file
+
+    InterviewQuestionRequest:
+      type: object
+      properties:
+        topicId:
+          type: integer
+        questionText:
+          type: string
+        difficulty:
+          type: string
