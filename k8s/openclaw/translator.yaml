@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw-translator:v7
+        image: localhost:5000/smarthouse-openclaw-translator:v8
         command: ["/bin/bash", "-c", "/start-gateway.sh"]
         imagePullPolicy: IfNotPresent
         env:
