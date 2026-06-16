@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-interviewer
+  namespace: openclaw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-interviewer
+  template:
+    metadata:
+      labels:
+        app: openclaw-interviewer
+    spec:
+      containers:
+      - name: openclaw
+        image: localhost:5000/smarthouse-openclaw-interviewer:latest
+        command: ["/bin/bash", "-c", "/start-gateway.sh"]
+        env:
+        - name: TELEGRAM_BOT_TOKEN
+          value: "PLACEHOLDER_TOKEN"
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openclaw-secrets
+              key: anthropic-api-key
+        - name: OPENCLAW_WORKSPACE
+          value: "/workspace"
+        volumeMounts:
+        - name: ssh-keys
+          mountPath: /root/.ssh
+        - name: workspace-volume
+          mountPath: /workspace
+      volumes:
+      - name: ssh-keys
+        hostPath:
+          path: /home/alexkzk/.ssh
+      - name: workspace-volume
+        emptyDir: {}

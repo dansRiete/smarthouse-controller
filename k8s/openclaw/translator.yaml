@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-translator
+  namespace: openclaw
+  labels:
+    app: openclaw-translator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-translator
+  template:
+    metadata:
+      labels:
+        app: openclaw-translator
+    spec:
+      containers:
+      - name: openclaw
+        image: localhost:5000/smarthouse-openclaw-translator:latest
+        command: ["/bin/bash", "-c", "/start-gateway.sh"]
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: openclaw-secrets
+              key: TELEGRAM_BOT_TOKEN
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openclaw-secrets
+              key: ANTHROPIC_API_KEY
+        - name: OPENCLAW_WORKSPACE
+          value: "/workspace"
+        securityContext:
+          # Required to ensure ssh keys can be read correctly if host permissions are strict
+          runAsUser: 0
+        volumeMounts:
+        - name: ssh-keys
+          mountPath: /root/.ssh
+          readOnly: false
+        - name: smarthouse-workspace
+          mountPath: /workspace
+        - name: openclaw-state
+          mountPath: /root/.openclaw
+      volumes:
+      - name: ssh-keys
+        hostPath:
+          path: /home/alexkzk/.ssh
+          type: Directory
+      - name: smarthouse-workspace
+        emptyDir: {}
+      - name: openclaw-state
+        hostPath:
+          path: /home/alexkzk/.openclaw
+          type: DirectoryOrCreate

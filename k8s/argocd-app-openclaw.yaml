@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openclaw-agents
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dansRiete/smarthouse-controller.git
+    targetRevision: master
+    path: k8s/openclaw
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openclaw
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
