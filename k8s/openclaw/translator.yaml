@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw-translator:latest
+        image: localhost:5000/smarthouse-openclaw-translator:v3
         command: ["/bin/bash", "-c", "/start-gateway.sh"]
         imagePullPolicy: IfNotPresent
         env:
@@ -26,11 +26,11 @@ spec:
             secretKeyRef:
               name: openclaw-secrets
               key: TELEGRAM_BOT_TOKEN
-        - name: ANTHROPIC_API_KEY
+        - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:
               name: openclaw-secrets
-              key: ANTHROPIC_API_KEY
+              key: GEMINI_API_KEY
         - name: OPENCLAW_WORKSPACE
           value: "/workspace"
         securityContext:
