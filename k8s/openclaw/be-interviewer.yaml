@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw-interviewer:v8
+        image: localhost:5000/smarthouse-openclaw-interviewer:v9
         command: ["/bin/bash", "-c", "/start-gateway.sh"]
         env:
         - name: TELEGRAM_BOT_TOKEN
