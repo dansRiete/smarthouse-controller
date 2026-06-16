@@ -25,7 +25,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: openclaw-secrets
-              key: TELEGRAM_BOT_TOKEN
+              key: TRANSLATOR_TELEGRAM_BOT_TOKEN
         - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:
