@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw:v10
+        image: localhost:5000/smarthouse-openclaw:v11
         command: ["/bin/bash", "-c", "sed -i 's/openclaw gateway --verbose/openclaw gateway --verbose --allow-unconfigured/g' /start.sh && /start.sh"]
         imagePullPolicy: IfNotPresent
         env:
@@ -25,7 +25,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: openclaw-secrets
-              key: TELEGRAM_BOT_TOKEN
+              key: HOMEASSISTANT_TELEGRAM_BOT_TOKEN
         - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:
