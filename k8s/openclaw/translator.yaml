@@ -53,5 +53,5 @@ spec:
         emptyDir: {}
       - name: openclaw-state
         hostPath:
-          path: /home/alexkzk/.openclaw-translator
+          path: /home/alexkzk/.openclaw/translator
           type: DirectoryOrCreate

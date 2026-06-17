@@ -1,31 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: openclaw-homeassistant
+  name: openclaw-interviewer
   namespace: openclaw
-  labels:
-    app: openclaw-homeassistant
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: openclaw-homeassistant
+      app: openclaw-interviewer
   template:
     metadata:
       labels:
-        app: openclaw-homeassistant
+        app: openclaw-interviewer
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw:v13
-        command: ["/bin/bash", "-c", "sed -i 's/openclaw gateway --verbose/openclaw gateway --verbose --allow-unconfigured/g' /start.sh && /start.sh"]
-        imagePullPolicy: IfNotPresent
+        image: localhost:5000/smarthouse-openclaw-interviewer:v9
+        command: ["/bin/bash", "-c", "/start-gateway.sh"]
         env:
         - name: TELEGRAM_BOT_TOKEN
           valueFrom:
             secretKeyRef:
               name: openclaw-secrets
-              key: HOMEASSISTANT_TELEGRAM_BOT_TOKEN
+              key: TELEGRAM_BOT_TOKEN
         - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:
@@ -33,14 +30,10 @@ spec:
               key: GEMINI_API_KEY
         - name: OPENCLAW_WORKSPACE
           value: "/workspace"
-        securityContext:
-          # Required to ensure ssh keys can be read correctly if host permissions are strict
-          runAsUser: 0
         volumeMounts:
         - name: ssh-keys
           mountPath: /root/.ssh
-          readOnly: false
-        - name: smarthouse-workspace
+        - name: workspace-volume
           mountPath: /workspace
         - name: openclaw-state
           mountPath: /root/.openclaw
@@ -48,10 +41,9 @@ spec:
       - name: ssh-keys
         hostPath:
           path: /home/alexkzk/.ssh
-          type: Directory
-      - name: smarthouse-workspace
+      - name: workspace-volume
         emptyDir: {}
       - name: openclaw-state
         hostPath:
-          path: /home/alexkzk/.openclaw/homeassistant
+          path: /home/alexkzk/.openclaw/interviewer
           type: DirectoryOrCreate
