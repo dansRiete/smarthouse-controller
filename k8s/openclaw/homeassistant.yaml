@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: openclaw-agent
+  name: openclaw-homeassistant
   namespace: openclaw
   labels:
-    app: openclaw
+    app: openclaw-homeassistant
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: openclaw
+      app: openclaw-homeassistant
   template:
     metadata:
       labels:
-        app: openclaw
+        app: openclaw-homeassistant
     spec:
       containers:
       - name: openclaw
