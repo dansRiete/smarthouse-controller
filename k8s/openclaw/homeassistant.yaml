@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openclaw
-        image: localhost:5000/smarthouse-openclaw:v9
+        image: localhost:5000/smarthouse-openclaw:v10
         command: ["/bin/bash", "-c", "sed -i 's/openclaw gateway --verbose/openclaw gateway --verbose --allow-unconfigured/g' /start.sh && /start.sh"]
         imagePullPolicy: IfNotPresent
         env:
