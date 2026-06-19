@@ -26,6 +26,22 @@ paths:
 
   # ── Interview ───────────────────────────────────────────────────────────────
 
+  /interview/sections:
+    get:
+      tags: [Interview]
+      summary: Get all sections
+      description: Returns a list of all distinct sections available in the database.
+      operationId: getInterviewSections
+      responses:
+        "200":
+          description: List of sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
   /interview/topics:
     get:
       tags: [Interview]
@@ -184,6 +200,27 @@ paths:
           description: No more questions available for this section
 
   /interview/questions/{id}/attempts:
+    get:
+      tags: [Interview]
+      summary: Get all attempts for a question
+      description: Returns the history of attempts for a specific question, ordered by most recent first.
+      operationId: getInterviewAttempts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the question
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewAttempt"
     post:
       tags: [Interview]
       summary: Submit a question attempt
@@ -887,6 +924,18 @@ components:
           type: string
           nullable: true
           description: Notes from the latest attempt
+
+    InterviewAttempt:
+      type: object
+      properties:
+        id:
+          type: integer
+        score:
+          type: integer
+          description: Score from 0 to 100
+        notes:
+          type: string
+          description: Feedback notes on the answer
 
     InterviewAttemptRequest:
       type: object

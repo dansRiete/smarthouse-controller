@@ -20,6 +20,12 @@ public class InterviewController {
 
     private final JdbcTemplate jdbcTemplate;
 
+    @GetMapping("/sections")
+    public ResponseEntity<List<String>> getSections() {
+        String sql = "SELECT DISTINCT section FROM interview_topic WHERE section IS NOT NULL ORDER BY section";
+        return ResponseEntity.ok(jdbcTemplate.queryForList(sql, String.class));
+    }
+
     @GetMapping("/topics")
     public ResponseEntity<List<Map<String, Object>>> getTopics(@RequestParam(required = false) String section) {
         String sql = "SELECT id, section, topic_name as \"topicName\", jd_relevance as \"jdRelevance\", " +
@@ -116,6 +122,12 @@ public class InterviewController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(res.get(0));
+    }
+
+    @GetMapping("/questions/{id}/attempts")
+    public ResponseEntity<List<Map<String, Object>>> getAttempts(@PathVariable int id) {
+        String sql = "SELECT id, score, notes FROM interview_attempt WHERE question_id = ? ORDER BY id DESC";
+        return ResponseEntity.ok(jdbcTemplate.queryForList(sql, id));
     }
 
     @PostMapping("/questions/{id}/attempts")
