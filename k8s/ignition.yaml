@@ -26,14 +26,6 @@ spec:
               value: standard
             - name: TZ
               value: America/New_York
-          volumeMounts:
-            - name: ignition-data
-              mountPath: /usr/local/bin/ignition/data
-      volumes:
-        - name: ignition-data
-          hostPath:
-            path: /home/alexkzk/ignition-data
-            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
