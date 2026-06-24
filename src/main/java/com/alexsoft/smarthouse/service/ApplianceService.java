@@ -39,6 +39,7 @@ public class ApplianceService {
     private final RequestRepository requestRepository;
     private final ApplianceFacade applianceFacade;
     private final EventRepository eventRepository;
+    private final ApartmentDetailsService apartmentDetailsService;
 
     @EventListener
     @Transactional
@@ -72,6 +73,19 @@ public class ApplianceService {
             double average = averageOptional.getAsDouble();
             appliance.setActual(average);
             saveAverageIndication(appliance, average, utc, toLocalDateTime(utc));
+
+            if ("ah".equals(appliance.getMeasurementType()) && !CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
+                LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
+                Optional<Double> avgRhOpt = indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                        appliance.getReferenceSensors(), averageStart, "rh");
+                if (avgRhOpt.isPresent()) {
+                    double avgRh = avgRhOpt.get();
+                    appliance.setActualRh(avgRh);
+                    String locationId = apartmentDetailsService.getLocationPrefix() + "-AVG";
+                    indicationServiceV3.save(IndicationV3.builder().locationId(locationId).localTime(toLocalDateTime(utc)).utcTime(utc).publisherId("i7-4770k").value(avgRh)
+                            .measurementType("rh").build());
+                }
+            }
             if (!appliance.isLocked() && appliance.getSetting() != null) {
                 boolean onCondition = average > appliance.getSetting() + appliance.getHysteresisOn();
                 boolean offCondition = average < appliance.getSetting() - appliance.getHysteresisOff();
@@ -169,7 +183,8 @@ public class ApplianceService {
         String metricType = appliance.getMetricType();
         if (metricType.equals("temp") || metricType.equals("humidity")) {
             String type = metricType.equals("humidity") ? "ah" : "temp";
-            indicationServiceV3.save(IndicationV3.builder().locationId("935-CORKWOOD-AVG").localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
+            String locationId = apartmentDetailsService.getLocationPrefix() + "-AVG";
+            indicationServiceV3.save(IndicationV3.builder().locationId(locationId).localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
                     .measurementType(type).value(average).build());
         }
     }
