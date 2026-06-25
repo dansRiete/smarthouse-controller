@@ -91,6 +91,22 @@ public class MqttIndicationListener {
                     MEASUREMENT_TYPES.forEach(m -> indicationV3s.add(indicationV3Builder.measurementType(m).unit(UNITS_MAP.get(m))
                             .value(getValue(String.valueOf(map.get(m)))).build()));
                 }
+                if (map.containsKey("state")) {
+                    indicationV3s.add(indicationV3Builder.measurementType("state").unit("bool")
+                            .value(getValue(String.valueOf(map.get("state")))).build());
+                }
+                if (map.containsKey("energy")) {
+                    indicationV3s.add(indicationV3Builder.measurementType("energy").unit("kWh")
+                            .value(getValue(String.valueOf(map.get("energy")))).build());
+                }
+                if (map.containsKey("linkquality")) {
+                    indicationV3s.add(indicationV3Builder.measurementType("linkquality").unit("lqi")
+                            .value(getValue(String.valueOf(map.get("linkquality")))).build());
+                }
+                if (map.containsKey("battery")) {
+                    indicationV3s.add(indicationV3Builder.measurementType("battery").unit("%")
+                            .value(getValue(String.valueOf(map.get("battery")))).build());
+                }
                 if (map.containsKey("illuminance")) {
                     indicationV3s.add(indicationV3Builder.measurementType("illuminance").unit("lux")
                             .value(getValue(String.valueOf(map.get("illuminance")))).build());
