@@ -29,7 +29,7 @@ public class Mqtt {
         String mqttUrl = "tcp://" + mqttServerIn + ":1883";
         org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter adapter =
                 new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(
-                        mqttUrl, mqttSubscriber + "-" + java.util.UUID.randomUUID(), mqttTopic);
+                        mqttUrl, mqttSubscriber + "-" + java.util.UUID.randomUUID(), mqttTopic, "zigbee2mqtt/#");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
