@@ -89,6 +89,7 @@ public class ApplianceFacade {
             messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}"
                     .formatted(appliance.getCode(), appliance.getState() == ON ? "on" : "off"));
         }
+
     }
 
 }
