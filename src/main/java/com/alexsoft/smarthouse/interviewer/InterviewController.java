@@ -36,9 +36,9 @@ public class InterviewController {
             sql += "WHERE section = ? ";
             args.add(section);
         }
-        sql += "ORDER BY CASE WHEN status = 'Not Started' THEN 0 WHEN status = 'In Progress' THEN 1 ELSE 2 END, COALESCE(avg_score, -1) ASC";
-
-        return ResponseEntity.ok(jdbcTemplate.queryForList(sql, args.toArray()));
+        List<Map<String, Object>> result = new ArrayList<>(jdbcTemplate.queryForList(sql, args.toArray()));
+        java.util.Collections.shuffle(result);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/topics")
@@ -81,8 +81,9 @@ public class InterviewController {
             sql += "AND q.topic_id = ? ";
             args.add(topicId);
         }
-        sql += "ORDER BY q.id ASC";
-        return ResponseEntity.ok(jdbcTemplate.queryForList(sql, args.toArray()));
+        List<Map<String, Object>> result = new ArrayList<>(jdbcTemplate.queryForList(sql, args.toArray()));
+        java.util.Collections.shuffle(result);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/questions")
