@@ -135,6 +135,13 @@ public class ApplianceController {
                     case "referenceSensors":
                         appliance.setReferenceSensors((List<String>) value);
                         break;
+                    case "sensorControlled":
+                        Boolean sensorControlled = (Boolean) value;
+                        appliance.setSensorControlled(sensorControlled);
+                        eventRepository.save(Event.builder().utcTime(getUtc())
+                                .type("http.sensorControlled").device(applianceCode)
+                                .data(dataWithRequester(Map.of("sensorControlled", sensorControlled), requesterId, ip)).build());
+                        break;
                     default:
                         String errorMessage = String.format("Field '%s' is not supported for updating", key);
                         LOGGER.warn(errorMessage);

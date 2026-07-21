@@ -84,6 +84,9 @@ public class ScheduledService {
                     List.of("DEH"), averageStart, "power").stream().mapToDouble(IndicationV3::getValue).average();
 
             applianceService.getApplianceByCode("FAN").ifPresent(fan -> {
+                if (fan.isLocked() || Boolean.FALSE.equals(fan.getSensorControlled())) {
+                    return;
+                }
                 ApplianceState target = avgDehPower.isPresent() && avgDehPower.getAsDouble() > 500 && fanNeedsToBeTurnedOn ? ON : OFF;
                 applianceFacade.toggle(fan, target, utc, "deh-on", true);
                 indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
