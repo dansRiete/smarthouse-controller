@@ -20,16 +20,27 @@ public class Mqtt {
     private String mqttTopic;
 
     @Bean
+    public org.springframework.integration.mqtt.core.MqttPahoClientFactory mqttClientFactory() {
+        org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory factory =
+                new org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory();
+        org.eclipse.paho.client.mqttv3.MqttConnectOptions options = new org.eclipse.paho.client.mqttv3.MqttConnectOptions();
+        options.setAutomaticReconnect(true);
+        options.setConnectionTimeout(10);
+        factory.setConnectionOptions(options);
+        return factory;
+    }
+
+    @Bean
     public org.springframework.messaging.MessageChannel mqttInputChannel() {
         return new org.springframework.integration.channel.DirectChannel();
     }
 
     @Bean
-    public org.springframework.integration.core.MessageProducer inbound() {
+    public org.springframework.integration.core.MessageProducer inbound(org.springframework.integration.mqtt.core.MqttPahoClientFactory factory) {
         String mqttUrl = "tcp://" + mqttServerIn + ":1883";
         org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter adapter =
                 new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(
-                        mqttUrl, mqttSubscriber + "-" + java.util.UUID.randomUUID(), mqttTopic, "zigbee2mqtt/#");
+                        mqttUrl, mqttSubscriber + "-" + java.util.UUID.randomUUID(), factory, mqttTopic, "zigbee2mqtt/#");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -38,8 +49,8 @@ public class Mqtt {
     }
 
     @Bean
-    public IntegrationFlow mqttOutboundFlow() {
-        MqttPahoMessageHandler handler = new MqttPahoMessageHandler(mqttUrlOut, mqttSubscriber);
+    public IntegrationFlow mqttOutboundFlow(org.springframework.integration.mqtt.core.MqttPahoClientFactory factory) {
+        MqttPahoMessageHandler handler = new MqttPahoMessageHandler(mqttUrlOut, mqttSubscriber, factory);
         handler.setCompletionTimeout(5000);
         return f -> f.handle(handler);
     }
