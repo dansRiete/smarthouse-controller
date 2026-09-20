@@ -34,7 +34,7 @@ public class MqttIndicationListener {
         String topic = event.getTopic();
         String payload = event.getPayload();
         try {
-            if (topic != null && topic.startsWith("mqtt.smarthouse") && payload.contains("celsius")) {
+            if (topic != null && topic.startsWith("mqtt.smarthouse")) {
                 Map<String, Object> map = new ObjectMapper().readValue(payload, new TypeReference<>() {});
                 String publisherId = (String) map.get("publisherId");
                 String locationId = (String) map.get("measurePlace");
@@ -78,6 +78,14 @@ public class MqttIndicationListener {
                             indicationV3s.add(builder.measurementType("pressure").unit("mmHg").value(mmHg.doubleValue()).build());
                         }
                     }
+                    
+                    for (Map.Entry<String, Object> entry : map.entrySet()) {
+                        String key = entry.getKey();
+                        if (!"publisherId".equals(key) && !"measurePlace".equals(key) && !"inOut".equals(key) && !"air".equals(key)) {
+                            extractDynamicMetrics(key, entry.getValue(), indicationV3s, builder);
+                        }
+                    }
+
                     indicationServiceV3.saveAll(indicationV3s);
                 }
             } else if (topic != null && !topic.startsWith("zigbee2mqtt/bridge") && !topic.endsWith("/set")) {
@@ -157,6 +165,21 @@ public class MqttIndicationListener {
             }
         } catch (Exception e) {
             log.error("Error processing MQTT indication: {}", payload, e);
+        }
+    }
+
+    private void extractDynamicMetrics(String prefix, Object value, List<IndicationV3> indications, IndicationV3Builder builder) {
+        if (value instanceof Number) {
+            indications.add(builder.measurementType(prefix).unit("val").value(((Number) value).doubleValue()).build());
+        } else if (value instanceof Boolean) {
+            indications.add(builder.measurementType(prefix).unit("bool").value(((Boolean) value) ? 1.0 : 0.0).build());
+        } else if (value instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> nested = (Map<String, Object>) value;
+            for (Map.Entry<String, Object> entry : nested.entrySet()) {
+                String newPrefix = prefix.isEmpty() ? entry.getKey() : prefix + "_" + entry.getKey();
+                extractDynamicMetrics(newPrefix, entry.getValue(), indications, builder);
+            }
         }
     }
 
