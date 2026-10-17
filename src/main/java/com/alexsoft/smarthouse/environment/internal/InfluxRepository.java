@@ -101,7 +101,7 @@ public class InfluxRepository {
 
     }
 
-    private Point convertToPoint(IndicationV3 indication) {
+    Point convertToPoint(IndicationV3 indication) {
         Point point;
 
         try {
@@ -109,8 +109,11 @@ public class InfluxRepository {
                     .addTag("host", "smarthouse-server")
                     .addTag("location_id", indication.getLocationId())
                     .addTag("publisher_id", indication.getPublisherId())
-                    .addTag("mqtt_topic", indication.getMqttTopic())
-                    .addField(
+                    .addTag("mqtt_topic", indication.getMqttTopic());
+            if (indication.getUnit() != null) {
+                point.addTag("unit", indication.getUnit());
+            }
+            point.addField(
                             indication.getLocationId().equals("935-CORKWOOD-AC") ? "state" : indication.getMeasurementType(),
                             indication.getValue()
                     )
@@ -129,15 +132,7 @@ public class InfluxRepository {
         }
         try {
             WriteApiBlocking writeApi = influxDBClient.getWriteApiBlocking();
-
-            Point point = Point.measurement("mqtt")
-                    .addTag("host", "smarthouse-server")
-                    .addTag("location_id", indication.getLocationId())
-                    .addTag("publisher_id", indication.getPublisherId())
-                    .addTag("mqtt_topic", indication.getMqttTopic())
-                    .addField(indication.getLocationId().equals("935-CORKWOOD-AC") ? "state" : indication.getMeasurementType(), indication.getValue())
-                    .time(indication.getUtcTime().atZone(java.time.ZoneOffset.UTC).toInstant(), WritePrecision.NS);
-
+            Point point = convertToPoint(indication);
             writeApi.writePoint(influxDbBucket, influxDbOrg, point);
         } catch (Exception e) {
             LOGGER.error("Failed to save IndicationV3 to InfluxDB: {}", indication, e);
