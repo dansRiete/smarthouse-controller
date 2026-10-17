@@ -79,10 +79,15 @@ public class MqttIndicationListener {
                         }
                     }
                     
-                    for (Map.Entry<String, Object> entry : map.entrySet()) {
-                        String key = entry.getKey();
-                        if (!"publisherId".equals(key) && !"measurePlace".equals(key) && !"inOut".equals(key) && !"air".equals(key)) {
-                            extractDynamicMetrics(key, entry.getValue(), indicationV3s, builder);
+                    if (map.get("measurementType") instanceof String mType && map.get("value") instanceof Number val) {
+                        String unit = map.get("unit") instanceof String u ? u : "val";
+                        indicationV3s.add(builder.measurementType(mType).unit(unit).value(val.doubleValue()).build());
+                    } else {
+                        for (Map.Entry<String, Object> entry : map.entrySet()) {
+                            String key = entry.getKey();
+                            if (!"publisherId".equals(key) && !"measurePlace".equals(key) && !"inOut".equals(key) && !"air".equals(key)) {
+                                extractDynamicMetrics(key, entry.getValue(), indicationV3s, builder);
+                            }
                         }
                     }
 
