@@ -15,11 +15,9 @@ spec:
       labels:
         app: smarthouse-controller
     spec:
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: smarthouse-controller
-          image: ghcr.io/dansriete/smarthouse-controller:latest
+          image: localhost:5000/smarthouse-controller:latest
           ports:
             - containerPort: 24867
               hostPort: 24867
