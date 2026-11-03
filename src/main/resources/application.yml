@@ -79,6 +79,7 @@ flightradar24:
 
 kfxe:
   crossing-cron: "0 */1 * * * *"
+  adsb-url: "http://192.168.0.10:18090/v2/point/26.19728/-80.17071/35"
 time:
   local-time-zone: America/New_York
   chart-date-time-pattern: E d, HH:mm

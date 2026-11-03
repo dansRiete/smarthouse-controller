@@ -9,6 +9,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpEntity;
@@ -69,6 +70,9 @@ public class KfxeAirspaceCrossingService {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Value("${kfxe.adsb-url:" + ADSB_URL + "}")
+    private String adsbUrl = ADSB_URL;
+
     private Clock clock = Clock.systemUTC();
     private int consecutiveFailures = 0;
     private Duration currentCooldown = CB_INITIAL_COOLDOWN;
@@ -121,7 +125,7 @@ public class KfxeAirspaceCrossingService {
             }
             circuitOpenUntil = null;
             halfOpenProbe = true;
-            LOGGER.info("KFXE crossing circuit breaker entering HALF-OPEN state; probing {}", ADSB_URL);
+            LOGGER.info("KFXE crossing circuit breaker entering HALF-OPEN state; probing {}", adsbUrl);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -130,7 +134,7 @@ public class KfxeAirspaceCrossingService {
 
         ResponseEntity<String> response;
         try {
-            response = restTemplate.exchange(ADSB_URL, HttpMethod.GET, entity, String.class);
+            response = restTemplate.exchange(adsbUrl, HttpMethod.GET, entity, String.class);
         } catch (HttpClientErrorException e) {
             int status = e.getStatusCode().value();
             boolean immediateTrip = (status == 403 || status == 429);
