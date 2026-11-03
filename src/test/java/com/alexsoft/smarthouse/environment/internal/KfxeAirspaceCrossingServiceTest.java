@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
@@ -184,11 +185,11 @@ class KfxeAirspaceCrossingServiceTest {
         verify(eventPublisher, times(1)).publishEvent(captor.capture());
 
         AirspaceCrossingAlertEvent event = captor.getValue();
-        assertThat(scenario + " - title", event.title(), containsString("KFXE Airspace Crossing (" + expectedMinStr));
-        assertThat(scenario + " - title UTC", event.title(), containsString("UTC)"));
-        assertThat(scenario + " - body UTC", event.body(), containsString("[03:52 UTC]"));
-        assertThat(scenario + " - body reg/type", event.body(), containsString(reg + " (" + type + ")"));
-        assertThat(scenario + " - body compass", event.body(), containsString("approaching from " + expectedCompass));
+        String expectedCoords = String.format(Locale.US, "%.4f,%.4f", lat, lon);
+        assertThat(scenario + " - title", event.title(), is(type + " will cross KFXE airspace in " + expectedMinStr));
+        assertThat(scenario + " - body METAR UTC + reg + compass", event.body(),
+                containsString("030352Z, " + reg + " approaching from " + expectedCompass + ", "));
+        assertThat(scenario + " - body coords", event.body(), containsString(expectedCoords));
     }
 
     /**
@@ -325,5 +326,23 @@ class KfxeAirspaceCrossingServiceTest {
         advanceTime(Duration.ofMinutes(16));
         service.evaluateAirspaceCrossings();
         verify(eventPublisher, times(1)).publishEvent(any(AirspaceCrossingAlertEvent.class));
+    }
+
+    @Test
+    void evaluateAirspaceCrossings_exactTitleAndBodyFormatting_matchesSpecification() {
+        String payload = singleAircraftPayload(
+                "a12345", "N123AB", "C172", 26.397280, -80.170710, 180.0, 120.0, "1800");
+
+        when(restTemplate.exchange(eq(KfxeAirspaceCrossingService.ADSB_URL), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(payload));
+
+        service.evaluateAirspaceCrossings();
+
+        ArgumentCaptor<AirspaceCrossingAlertEvent> captor = ArgumentCaptor.forClass(AirspaceCrossingAlertEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+
+        AirspaceCrossingAlertEvent event = captor.getValue();
+        assertThat(event.title(), is("C172 will cross KFXE airspace in ~4 min"));
+        assertThat(event.body(), is("030352Z, N123AB approaching from N, 12.0 NM out, 26.3973,-80.1707, 1,800 ft, 120 kt, 180°"));
     }
 }

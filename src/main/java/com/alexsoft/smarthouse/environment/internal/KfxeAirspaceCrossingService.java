@@ -60,7 +60,7 @@ public class KfxeAirspaceCrossingService {
     static final Duration CB_MAX_COOLDOWN = Duration.ofHours(6);
     static final Duration ALERT_DEDUP_WINDOW = Duration.ofMinutes(30);
 
-    private static final DateTimeFormatter UTC_TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter METAR_UTC_FMT = DateTimeFormatter.ofPattern("ddHHmm'Z'");
     private static final String[] COMPASS_DIRS = {
         "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
         "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
@@ -263,21 +263,25 @@ public class KfxeAirspaceCrossingService {
             recentAlerts.put(dedupKey, nowUtc);
         }
 
-        LocalDateTime entryUtc = nowUtc.plusSeconds(Math.round(tEntryMin * 60.0));
         int roundedMinutes = Math.max(1, (int) Math.round(tEntryMin));
         String compassFromKfxe = bearingToCompass(dxNm, dyNm);
-        String identifier = getAircraftIdentifier(ac);
+        String type = ac.getAircraftType() != null && !ac.getAircraftType().isBlank()
+                ? ac.getAircraftType().trim()
+                : "Aircraft";
+        String callsignOrReg = getPrimaryIdentifier(ac);
 
         String title = String.format(Locale.US,
-                "KFXE Airspace Crossing (~%d min, ~%s UTC)",
-                roundedMinutes, entryUtc.format(UTC_TIME_FMT));
+                "%s will cross KFXE airspace in ~%d min",
+                type, roundedMinutes);
 
         String body = String.format(Locale.US,
-                "[%s UTC] %s approaching from %s (%.1f NM out) at %,d ft, %.0f kt, track %.0f°",
-                nowUtc.format(UTC_TIME_FMT),
-                identifier,
+                "%s, %s approaching from %s, %.1f NM out, %.4f,%.4f, %,d ft, %.0f kt, %.0f°",
+                nowUtc.format(METAR_UTC_FMT),
+                callsignOrReg,
                 compassFromKfxe,
                 currentDistNm,
+                ac.getLatitude(),
+                ac.getLongitude(),
                 altFt,
                 ac.getGroundSpeed(),
                 ac.getTrack());
@@ -319,15 +323,17 @@ public class KfxeAirspaceCrossingService {
         return null;
     }
 
-    private static String getAircraftIdentifier(Aircraft ac) {
+    private static String getPrimaryIdentifier(Aircraft ac) {
         String reg = ac.getRegistration() != null ? ac.getRegistration().trim() : null;
         String flight = ac.getFlight() != null ? ac.getFlight().trim() : null;
-        String type = ac.getAircraftType() != null ? ac.getAircraftType().trim() : null;
-
-        String primary = (reg != null && !reg.isEmpty()) ? reg
+        return (reg != null && !reg.isEmpty()) ? reg
                 : (flight != null && !flight.isEmpty()) ? flight
                 : (ac.getHex() != null ? ac.getHex().trim() : "Unknown");
+    }
 
+    private static String getAircraftIdentifier(Aircraft ac) {
+        String primary = getPrimaryIdentifier(ac);
+        String type = ac.getAircraftType() != null ? ac.getAircraftType().trim() : null;
         if (type != null && !type.isEmpty()) {
             return primary + " (" + type + ")";
         }

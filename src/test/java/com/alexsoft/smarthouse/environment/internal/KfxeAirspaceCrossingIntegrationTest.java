@@ -24,6 +24,7 @@ import java.util.Locale;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -109,11 +110,11 @@ class KfxeAirspaceCrossingIntegrationTest {
         ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
         verify(fcmService, times(1)).sendAlert(titleCaptor.capture(), bodyCaptor.capture(), eq("gentle"));
 
-        assertThat(scenario + " - FCM title", titleCaptor.getValue(), containsString("KFXE Airspace Crossing (" + expectedMinStr));
-        assertThat(scenario + " - FCM title UTC", titleCaptor.getValue(), containsString("UTC)"));
-        assertThat(scenario + " - FCM body UTC", bodyCaptor.getValue(), containsString("[03:52 UTC]"));
-        assertThat(scenario + " - FCM body reg/type", bodyCaptor.getValue(), containsString(reg + " (" + type + ")"));
-        assertThat(scenario + " - FCM body compass", bodyCaptor.getValue(), containsString("approaching from " + expectedCompass));
+        String expectedCoords = String.format(Locale.US, "%.4f,%.4f", lat, lon);
+        assertThat(scenario + " - FCM title", titleCaptor.getValue(), is(type + " will cross KFXE airspace in " + expectedMinStr));
+        assertThat(scenario + " - FCM body METAR UTC + reg + compass", bodyCaptor.getValue(),
+                containsString("030352Z, " + reg + " approaching from " + expectedCompass + ", "));
+        assertThat(scenario + " - FCM body coords", bodyCaptor.getValue(), containsString(expectedCoords));
     }
 
     @ParameterizedTest(name = "HTTP IT Non-Triggering #{index}: {0}")
@@ -197,10 +198,15 @@ class KfxeAirspaceCrossingIntegrationTest {
 
         mockServer.verify();
 
+        ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(fcmService, times(2)).sendAlert(anyString(), bodyCaptor.capture(), eq("gentle"));
-        assertThat(bodyCaptor.getAllValues().get(0), containsString("N101NS (C172)"));
-        assertThat(bodyCaptor.getAllValues().get(1), containsString("N103NE (SR22)"));
+        verify(fcmService, times(2)).sendAlert(titleCaptor.capture(), bodyCaptor.capture(), eq("gentle"));
+        assertThat(titleCaptor.getAllValues().get(0), is("C172 will cross KFXE airspace in ~4 min"));
+        assertThat(bodyCaptor.getAllValues().get(0),
+                is("030352Z, N101NS approaching from N, 12.0 NM out, 26.3973,-80.1707, 1,800 ft, 120 kt, 180°"));
+        assertThat(titleCaptor.getAllValues().get(1), is("SR22 will cross KFXE airspace in ~3 min"));
+        assertThat(bodyCaptor.getAllValues().get(1),
+                is("030352Z, N103NE approaching from NE, 11.0 NM out, 26.3269,-80.0262, 2,200 ft, 140 kt, 225°"));
     }
 
     @Test
