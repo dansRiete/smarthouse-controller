@@ -28,6 +28,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -45,6 +46,11 @@ import static com.alexsoft.smarthouse.core.util.DateUtils.toUtc;
 public class MetarService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetarService.class);
+
+    static final String ADSB_URL = "https://api.adsb.lol/v2/point/26.197679/-80.172695/15";
+    static final int CB_FAILURE_THRESHOLD = 3;
+    static final Duration CB_INITIAL_COOLDOWN = Duration.ofMinutes(15);
+    static final Duration CB_MAX_COOLDOWN = Duration.ofHours(6);
 
     @Value("${avwx.token}")
     private String avwxToken;
@@ -68,6 +74,12 @@ public class MetarService {
     private final AirspaceActivityRepository airspaceActivityRepository;
     private final MessageSenderService messageSenderService;
     private final Executor ioTaskExecutor;
+
+    private Clock clock = Clock.systemDefaultZone();
+    private int aircraftConsecutiveFailures = 0;
+    private Duration aircraftCurrentCooldown = CB_INITIAL_COOLDOWN;
+    private LocalDateTime aircraftCircuitOpenUntil = null;
+    private boolean aircraftHalfOpenProbe = false;
 
     @Value("${weatherapi.baseUri:https://api.weatherapi.com/v1/forecast.json}")
     private String weatherApiBaseUri;
@@ -292,32 +304,48 @@ public class MetarService {
         return metar;
     }
 
-    public void readAircraftNumber() {
+    void setClock(Clock clock) {
+        this.clock = clock;
+    }
+
+    public synchronized void readAircraftNumber() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (aircraftCircuitOpenUntil != null) {
+            if (now.isBefore(aircraftCircuitOpenUntil)) {
+                LOGGER.debug("Aircraft endpoint circuit breaker is OPEN until {}; skipping call", aircraftCircuitOpenUntil);
+                return;
+            }
+            aircraftCircuitOpenUntil = null;
+            aircraftHalfOpenProbe = true;
+            LOGGER.info("Aircraft endpoint circuit breaker entering HALF-OPEN state; probing {}", ADSB_URL);
+        }
 
         List<Aircraft> aircrafts = new ArrayList<>();
-        String baseUrl = "https://api.airplanes.live/v2/point/26.197679/-80.172695/15";
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(baseUrl);
-
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + frToken);
-        headers.set("Accept-Version", "v1");
+        headers.set(HttpHeaders.ACCEPT, "application/json");
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        String rawPayload = null;
         ResponseEntity<String> response;
-
         try {
-            response = restTemplate.exchange(baseUrl, HttpMethod.GET, entity, String.class);
+            response = restTemplate.exchange(ADSB_URL, HttpMethod.GET, entity, String.class);
+        } catch (HttpClientErrorException e) {
+            int status = e.getStatusCode().value();
+            boolean immediateTrip = (status == 403 || status == 429);
+            recordAircraftFailure(now, immediateTrip, e.getMessage());
+            return;
         } catch (Exception e) {
-            LOGGER.warn("Couldn't readAircraftNumber: {}", e.getMessage());
+            recordAircraftFailure(now, false, e.getMessage());
             return;
         }
 
-        rawPayload = response.getBody();
+        String rawPayload = response.getBody();
         if (rawPayload == null) {
-            LOGGER.warn("readAircraftNumber: empty response body");
+            recordAircraftFailure(now, false, "empty response body");
             return;
         }
+
+        recordAircraftSuccess();
+
         if (!rawPayload.equalsIgnoreCase("[]")) {
             AircraftData aircraftData = null;
             try {
@@ -352,9 +380,39 @@ public class MetarService {
                 .airspace("FXE")
                 .airborneAircrafts(aircrafts.size())
                 .aircrafts(aircraftsData)
-                .timestamp(LocalDateTime.now())
+                .timestamp(now)
                 .build();
 
         airspaceActivityRepository.save(activity);
+    }
+
+    private void recordAircraftSuccess() {
+        if (aircraftHalfOpenProbe || aircraftConsecutiveFailures > 0) {
+            LOGGER.info("Aircraft endpoint recovered; circuit breaker CLOSED");
+        }
+        aircraftConsecutiveFailures = 0;
+        aircraftCurrentCooldown = CB_INITIAL_COOLDOWN;
+        aircraftCircuitOpenUntil = null;
+        aircraftHalfOpenProbe = false;
+    }
+
+    private void recordAircraftFailure(LocalDateTime now, boolean immediateTrip, String reason) {
+        aircraftConsecutiveFailures++;
+        if (aircraftHalfOpenProbe) {
+            aircraftHalfOpenProbe = false;
+            long nextMinutes = Math.min(aircraftCurrentCooldown.toMinutes() * 2, CB_MAX_COOLDOWN.toMinutes());
+            aircraftCurrentCooldown = Duration.ofMinutes(nextMinutes);
+            aircraftCircuitOpenUntil = now.plus(aircraftCurrentCooldown);
+            LOGGER.warn("Aircraft HALF-OPEN probe failed ({}). Circuit breaker re-opened for {} minutes until {}",
+                    reason, aircraftCurrentCooldown.toMinutes(), aircraftCircuitOpenUntil);
+        } else if (immediateTrip || aircraftConsecutiveFailures >= CB_FAILURE_THRESHOLD) {
+            aircraftCurrentCooldown = CB_INITIAL_COOLDOWN;
+            aircraftCircuitOpenUntil = now.plus(aircraftCurrentCooldown);
+            LOGGER.warn("Aircraft endpoint failed ({} consecutive, reason: {}). Circuit breaker OPEN for {} minutes until {}",
+                    aircraftConsecutiveFailures, reason, aircraftCurrentCooldown.toMinutes(), aircraftCircuitOpenUntil);
+        } else {
+            LOGGER.warn("Couldn't readAircraftNumber (failure {}/{}): {}",
+                    aircraftConsecutiveFailures, CB_FAILURE_THRESHOLD, reason);
+        }
     }
 }

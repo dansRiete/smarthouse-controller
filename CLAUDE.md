@@ -161,7 +161,7 @@ Two thread pools handle scheduled work:
 
 | Schedule | Method | Description |
 |---|---|---|
-| Every 1min (`0 */1 * * * *`) | `MetarService.retrieveAndProcessAircraftNumber()` | Fetches aircraft count in FXE area from airplanes.live |
+| Every 1min (`0 */1 * * * *`) | `MetarService.retrieveAndProcessAircraftNumber()` | Fetches aircraft count in FXE area from adsb.lol (with circuit breaker: 3 failures or 403/429 trips for 15m, doubling up to 6h) |
 | Every 30min (`0 */30 * * * *`) | `MetarService.retrieveAndProcessMetarData()` | Fetches METAR for ~25 airports in parallel (5 threads), saves weather data |
 | Every 5min (`0 */5 * * * *`) | `MetarService.aggregateMinutely()` | DB aggregation over last 5 minutes |
 | Every 1h (`0 0 */1 * * *`) | `MetarService.aggregateHourly()` | DB aggregation over last hour |
@@ -174,7 +174,7 @@ Two thread pools handle scheduled work:
 
 | Client | Connect | Read/Block |
 |---|---|---|
-| `MetarService` RestTemplate (AVWX, airplanes.live) | 5s | 10s |
+| `MetarService` RestTemplate (AVWX, adsb.lol) | 5s | 10s |
 | `BtcService` WebClient (CoinGecko) | — | 10s (`block()`) |
 | MQTT outbound handler | — | 5s (`completionTimeout`) |
 
