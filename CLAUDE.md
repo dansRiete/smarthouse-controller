@@ -265,7 +265,7 @@ ORDER BY utc_time DESC LIMIT 1;
 
 ## Release Process
 
-**Pipeline**: push to `master` → GitHub Actions (self-hosted runner) → Docker build (runs tests) → push to `ghcr.io/dansriete/smarthouse-controller` → `kubectl set image` → rollout wait.
+**Pipeline**: push to `master` → SSH to `192.168.0.201` and run `./redeploy.sh` in `~/smarthouse-controller` → Docker build (runs tests) → push to local registry `localhost:5000/smarthouse-controller` → `kubectl set image` → rollout wait.
 
 ArgoCD also watches `master` and syncs k8s manifests automatically (`k8s/` directory, excludes `argocd-app.yaml`).
 
@@ -279,14 +279,17 @@ Always run the full test suite locally and confirm it passes before pushing:
 ./mvnw test
 ```
 
-Tests run inside the Docker build too (no `-DskipTests`), so a failing test will break the pipeline and block deployment.
+Tests run inside the Docker build too (no `-DskipTests`), so a failing test will break the build and block deployment.
 
 ### Deployment steps
 
 1. Run `./mvnw test` — must be green
 2. Commit and push to `master`
-3. GitHub Actions builds the image, tags it with the commit SHA and `latest`, pushes to GHCR
-4. Action then runs `kubectl set image` in the `smarthouse` namespace and waits up to 5 minutes for rollout
+3. Deploy via `redeploy.sh` on `192.168.0.201`:
+   ```bash
+   ssh 192.168.0.201 "cd ~/smarthouse-controller && git pull && ./redeploy.sh"
+   ```
+4. `redeploy.sh` builds the image, tags it with `<short-sha>-<timestamp>` and `latest`, pushes to `localhost:5000/smarthouse-controller`, runs `kubectl set image` in the `smarthouse` namespace, and waits up to 5 minutes for rollout
 5. Pod health is verified via the actuator readiness probe at `/smarthouse/actuator/health`
 
 To check deployment status manually:
