@@ -90,6 +90,18 @@ public class KfxeAirspaceCrossingService {
         this.clock = clock;
     }
 
+    RestTemplate getRestTemplate() {
+        return restTemplate;
+    }
+
+    void resetStateForTesting() {
+        consecutiveFailures = 0;
+        currentCooldown = CB_INITIAL_COOLDOWN;
+        circuitOpenUntil = null;
+        halfOpenProbe = false;
+        recentAlerts.clear();
+    }
+
     @Async("ioTaskExecutor")
     @Scheduled(cron = "${kfxe.crossing-cron:0 */1 * * * *}")
     public void checkApproachingAircraft() {
