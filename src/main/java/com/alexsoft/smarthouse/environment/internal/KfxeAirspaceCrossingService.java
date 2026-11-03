@@ -51,7 +51,7 @@ public class KfxeAirspaceCrossingService {
     static final double RUNWAY_FINAL_CORRIDOR_NM = 1.8;
 
     static final double MIN_ADVANCE_MINUTES = 0.5;
-    static final double MAX_ADVANCE_MINUTES = 5.5;
+    static final double MAX_ADVANCE_MINUTES = 8.5;
     static final double MIN_CROSSING_CHORD_NM = 1.0;
 
     static final int CB_FAILURE_THRESHOLD = 3;

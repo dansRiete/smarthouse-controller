@@ -152,7 +152,11 @@ class KfxeAirspaceCrossingServiceTest {
 
                 // 13. Outer 5-minute window edge (14.5 NM North, track 180°, 120 kt -> 10.5 NM from boundary -> enters in 5.25 min -> rounds to ~5 min)
                 Arguments.of("Outer 5-minute window edge (5.25 min to boundary)",
-                        "N113OU", "M20P", 26.438947, -80.170710, 180.0, 120.0, "1700", "N", "~5 min")
+                        "N113OU", "M20P", 26.438947, -80.170710, 180.0, 120.0, "1700", "N", "~5 min"),
+
+                // 14. Early radio call-up lead window (20 NM North, track 180°, 120 kt -> 16 NM from boundary -> enters in 8.0 min -> ~3 min before 10 NM radio call!)
+                Arguments.of("Early radio call-up window 20 NM out (8.0 min to boundary)",
+                        "N114RC", "C172", 26.530613, -80.170710, 180.0, 120.0, "1800", "N", "~8 min")
         );
     }
 
@@ -263,9 +267,9 @@ class KfxeAirspaceCrossingServiceTest {
                         "N215GZ", 26.363947, -80.096785, 180.0, 120.0, "1800"),
 
                 // --- Timing & Speed Exclusions ---
-                // 16. Too far away: 20 NM North at 120 kt (16 NM to boundary -> 8.0 minutes away > 5.5 min max window)
-                Arguments.of("Too far away (8.0 minutes to boundary > 5.5 min window)",
-                        "N216FR", 26.530613, -80.170710, 180.0, 120.0, "1800"),
+                // 16. Too far away: 26 NM North at 120 kt (22 NM to boundary -> 11.0 minutes away > 8.5 min max window)
+                Arguments.of("Too far away (11.0 minutes to boundary > 8.5 min window)",
+                        "N216FR", 26.630613, -80.170710, 180.0, 120.0, "1800"),
 
                 // 17. Too close to boundary (< 0.5 min): 4.2 NM North at 120 kt (0.2 NM to boundary -> 0.1 min < 0.5 min)
                 Arguments.of("Already at boundary edge (0.1 min to boundary < 0.5 min)",
