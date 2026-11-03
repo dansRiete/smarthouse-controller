@@ -1,7 +1,7 @@
 package com.alexsoft.smarthouse.environment.internal;
 
-import com.alexsoft.smarthouse.watchdog.internal.AirspaceCrossingAlertListener;
-import com.alexsoft.smarthouse.watchdog.internal.FcmService;
+import com.alexsoft.smarthouse.core.Event;
+import com.alexsoft.smarthouse.core.EventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,14 +19,14 @@ import org.springframework.test.web.client.MockRestServiceServer;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,8 +38,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 @SpringJUnitConfig(classes = {
         RestTemplateAutoConfiguration.class,
-        KfxeAirspaceCrossingService.class,
-        AirspaceCrossingAlertListener.class
+        KfxeAirspaceCrossingService.class
 })
 class KfxeAirspaceCrossingIntegrationTest {
 
@@ -47,7 +46,7 @@ class KfxeAirspaceCrossingIntegrationTest {
     private KfxeAirspaceCrossingService crossingService;
 
     @MockitoBean
-    private FcmService fcmService;
+    private EventRepository eventRepository;
 
     private MockRestServiceServer mockServer;
 
@@ -106,20 +105,23 @@ class KfxeAirspaceCrossingIntegrationTest {
 
         mockServer.verify();
 
-        ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(fcmService, times(1)).sendAlert(titleCaptor.capture(), bodyCaptor.capture(), eq("gentle"));
+        ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository, times(1)).save(eventCaptor.capture());
 
+        Event saved = eventCaptor.getValue();
         String expectedCoords = String.format(Locale.US, "%.4f,%.4f", lat, lon);
-        assertThat(scenario + " - FCM title", titleCaptor.getValue(), is(type + " will cross KFXE airspace in " + expectedMinStr));
-        assertThat(scenario + " - FCM body METAR UTC + reg + compass", bodyCaptor.getValue(),
+        assertThat(scenario + " - Event type", saved.getType(), is("kfxe.airspace.crossing"));
+        assertThat(scenario + " - Event device", saved.getDevice(), is("KFXE"));
+        assertThat(scenario + " - Event utcTime", saved.getUtcTime(), is(LocalDateTime.of(2026, 11, 3, 3, 52, 0)));
+        assertThat(scenario + " - Event title", saved.getData().get("title"), is(type + " will cross KFXE airspace in " + expectedMinStr));
+        assertThat(scenario + " - Event body METAR UTC + reg + compass", (String) saved.getData().get("body"),
                 containsString("030352Z, " + reg + " approaching from " + expectedCompass + ", "));
-        assertThat(scenario + " - FCM body coords", bodyCaptor.getValue(), containsString(expectedCoords));
+        assertThat(scenario + " - Event body coords", (String) saved.getData().get("body"), containsString(expectedCoords));
     }
 
     @ParameterizedTest(name = "HTTP IT Non-Triggering #{index}: {0}")
     @MethodSource("com.alexsoft.smarthouse.environment.internal.KfxeAirspaceCrossingServiceTest#nonTriggeringAircraftProvider")
-    void httpIntegration_nonTriggeringAircraftPositions_doesNotSendFcmAlert(
+    void httpIntegration_nonTriggeringAircraftPositions_doesNotSaveEvent(
             String scenario,
             String reg,
             double lat,
@@ -138,11 +140,11 @@ class KfxeAirspaceCrossingIntegrationTest {
         crossingService.evaluateAirspaceCrossings();
 
         mockServer.verify();
-        verify(fcmService, never()).sendAlert(anyString(), anyString(), anyString());
+        verify(eventRepository, never()).save(any(Event.class));
     }
 
     @Test
-    void httpIntegration_mixedBatchResponse_alertsOnlyForValidCrossings() {
+    void httpIntegration_mixedBatchResponse_savesEventsOnlyForValidCrossings() {
         String batchJson = """
                 {
                   "ac": [
@@ -198,14 +200,21 @@ class KfxeAirspaceCrossingIntegrationTest {
 
         mockServer.verify();
 
-        ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(fcmService, times(2)).sendAlert(titleCaptor.capture(), bodyCaptor.capture(), eq("gentle"));
-        assertThat(titleCaptor.getAllValues().get(0), is("C172 will cross KFXE airspace in ~4 min"));
-        assertThat(bodyCaptor.getAllValues().get(0),
+        ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository, times(2)).save(eventCaptor.capture());
+
+        Event first = eventCaptor.getAllValues().get(0);
+        assertThat(first.getType(), is("kfxe.airspace.crossing"));
+        assertThat(first.getDevice(), is("KFXE"));
+        assertThat(first.getData().get("title"), is("C172 will cross KFXE airspace in ~4 min"));
+        assertThat(first.getData().get("body"),
                 is("030352Z, N101NS approaching from N, 12.0 NM out, 26.3973,-80.1707, 1,800 ft, 120 kt, 180°"));
-        assertThat(titleCaptor.getAllValues().get(1), is("SR22 will cross KFXE airspace in ~3 min"));
-        assertThat(bodyCaptor.getAllValues().get(1),
+
+        Event second = eventCaptor.getAllValues().get(1);
+        assertThat(second.getType(), is("kfxe.airspace.crossing"));
+        assertThat(second.getDevice(), is("KFXE"));
+        assertThat(second.getData().get("title"), is("SR22 will cross KFXE airspace in ~3 min"));
+        assertThat(second.getData().get("body"),
                 is("030352Z, N103NE approaching from NE, 11.0 NM out, 26.3269,-80.0262, 2,200 ft, 140 kt, 225°"));
     }
 
@@ -223,6 +232,6 @@ class KfxeAirspaceCrossingIntegrationTest {
         mockServer.reset();
         crossingService.evaluateAirspaceCrossings();
         mockServer.verify();
-        verify(fcmService, never()).sendAlert(anyString(), anyString(), anyString());
+        verify(eventRepository, never()).save(any(Event.class));
     }
 }

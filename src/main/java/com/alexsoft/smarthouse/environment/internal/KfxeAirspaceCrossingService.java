@@ -1,6 +1,7 @@
 package com.alexsoft.smarthouse.environment.internal;
 
-import com.alexsoft.smarthouse.environment.AirspaceCrossingAlertEvent;
+import com.alexsoft.smarthouse.core.Event;
+import com.alexsoft.smarthouse.core.EventRepository;
 import com.alexsoft.smarthouse.environment.model.airplaneslive.Aircraft;
 import com.alexsoft.smarthouse.environment.model.airplaneslive.AircraftData;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -67,7 +67,7 @@ public class KfxeAirspaceCrossingService {
     };
 
     private final RestTemplate restTemplate;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventRepository eventRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${kfxe.adsb-url:" + ADSB_URL + "}")
@@ -82,12 +82,12 @@ public class KfxeAirspaceCrossingService {
 
     public KfxeAirspaceCrossingService(
             RestTemplateBuilder restTemplateBuilder,
-            ApplicationEventPublisher eventPublisher) {
+            EventRepository eventRepository) {
         this.restTemplate = restTemplateBuilder
                 .connectTimeout(Duration.ofSeconds(5))
                 .readTimeout(Duration.ofSeconds(10))
                 .build();
-        this.eventPublisher = eventPublisher;
+        this.eventRepository = eventRepository;
     }
 
     void setClock(Clock clock) {
@@ -287,7 +287,13 @@ public class KfxeAirspaceCrossingService {
                 ac.getTrack());
 
         LOGGER.info("Detected approaching KFXE crossing: {} | {}", title, body);
-        eventPublisher.publishEvent(new AirspaceCrossingAlertEvent(title, body));
+        eventRepository.save(Event.builder()
+                .utcTime(nowUtc)
+                .type("kfxe.airspace.crossing")
+                .device("KFXE")
+                .data(Map.of("title", title, "body", body))
+                .build());
+        // eventPublisher.publishEvent(new AirspaceCrossingAlertEvent(title, body));
     }
 
     static boolean isOnRunwayLandingCourse(double trackDeg, double cpaDistNm) {

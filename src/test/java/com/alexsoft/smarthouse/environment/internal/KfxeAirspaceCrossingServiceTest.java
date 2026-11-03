@@ -1,6 +1,7 @@
 package com.alexsoft.smarthouse.environment.internal;
 
-import com.alexsoft.smarthouse.environment.AirspaceCrossingAlertEvent;
+import com.alexsoft.smarthouse.core.Event;
+import com.alexsoft.smarthouse.core.EventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,7 +12,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -50,7 +51,7 @@ class KfxeAirspaceCrossingServiceTest {
     private RestTemplate restTemplate;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private EventRepository eventRepository;
 
     private KfxeAirspaceCrossingService service;
     private Instant currentInstant;
@@ -61,7 +62,7 @@ class KfxeAirspaceCrossingServiceTest {
         lenient().when(restTemplateBuilder.readTimeout(any())).thenReturn(restTemplateBuilder);
         lenient().when(restTemplateBuilder.build()).thenReturn(restTemplate);
 
-        service = new KfxeAirspaceCrossingService(restTemplateBuilder, eventPublisher);
+        service = new KfxeAirspaceCrossingService(restTemplateBuilder, eventRepository);
         currentInstant = Instant.parse("2026-11-03T03:52:00Z");
         updateClock();
     }
@@ -181,15 +182,18 @@ class KfxeAirspaceCrossingServiceTest {
 
         service.evaluateAirspaceCrossings();
 
-        ArgumentCaptor<AirspaceCrossingAlertEvent> captor = ArgumentCaptor.forClass(AirspaceCrossingAlertEvent.class);
-        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository, times(1)).save(captor.capture());
 
-        AirspaceCrossingAlertEvent event = captor.getValue();
+        Event event = captor.getValue();
         String expectedCoords = String.format(Locale.US, "%.4f,%.4f", lat, lon);
-        assertThat(scenario + " - title", event.title(), is(type + " will cross KFXE airspace in " + expectedMinStr));
-        assertThat(scenario + " - body METAR UTC + reg + compass", event.body(),
+        assertThat(scenario + " - type", event.getType(), is("kfxe.airspace.crossing"));
+        assertThat(scenario + " - device", event.getDevice(), is("KFXE"));
+        assertThat(scenario + " - utcTime", event.getUtcTime(), is(LocalDateTime.of(2026, 11, 3, 3, 52, 0)));
+        assertThat(scenario + " - title", event.getData().get("title"), is(type + " will cross KFXE airspace in " + expectedMinStr));
+        assertThat(scenario + " - body METAR UTC + reg + compass", (String) event.getData().get("body"),
                 containsString("030352Z, " + reg + " approaching from " + expectedCompass + ", "));
-        assertThat(scenario + " - body coords", event.body(), containsString(expectedCoords));
+        assertThat(scenario + " - body coords", (String) event.getData().get("body"), containsString(expectedCoords));
     }
 
     /**
@@ -299,7 +303,7 @@ class KfxeAirspaceCrossingServiceTest {
 
         service.evaluateAirspaceCrossings();
 
-        verify(eventPublisher, never()).publishEvent(any(AirspaceCrossingAlertEvent.class));
+        verify(eventRepository, never()).save(any(Event.class));
     }
 
     @Test
@@ -310,22 +314,22 @@ class KfxeAirspaceCrossingServiceTest {
         when(restTemplate.exchange(eq(KfxeAirspaceCrossingService.ADSB_URL), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(payload));
 
-        // First detection -> triggers alert
+        // First detection -> saves event
         service.evaluateAirspaceCrossings();
-        verify(eventPublisher, times(1)).publishEvent(any(AirspaceCrossingAlertEvent.class));
+        verify(eventRepository, times(1)).save(any(Event.class));
 
         // 1 minute and 15 minutes later -> suppressed by 30-minute deduplication window
-        clearInvocations(eventPublisher);
+        clearInvocations(eventRepository);
         advanceTime(Duration.ofMinutes(1));
         service.evaluateAirspaceCrossings();
         advanceTime(Duration.ofMinutes(14));
         service.evaluateAirspaceCrossings();
-        verify(eventPublisher, never()).publishEvent(any(AirspaceCrossingAlertEvent.class));
+        verify(eventRepository, never()).save(any(Event.class));
 
-        // 31 minutes after first alert -> deduplication expired, alerts again
+        // 31 minutes after first alert -> deduplication expired, saves event again
         advanceTime(Duration.ofMinutes(16));
         service.evaluateAirspaceCrossings();
-        verify(eventPublisher, times(1)).publishEvent(any(AirspaceCrossingAlertEvent.class));
+        verify(eventRepository, times(1)).save(any(Event.class));
     }
 
     @Test
@@ -338,11 +342,14 @@ class KfxeAirspaceCrossingServiceTest {
 
         service.evaluateAirspaceCrossings();
 
-        ArgumentCaptor<AirspaceCrossingAlertEvent> captor = ArgumentCaptor.forClass(AirspaceCrossingAlertEvent.class);
-        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+        ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository, times(1)).save(captor.capture());
 
-        AirspaceCrossingAlertEvent event = captor.getValue();
-        assertThat(event.title(), is("C172 will cross KFXE airspace in ~4 min"));
-        assertThat(event.body(), is("030352Z, N123AB approaching from N, 12.0 NM out, 26.3973,-80.1707, 1,800 ft, 120 kt, 180°"));
+        Event event = captor.getValue();
+        assertThat(event.getType(), is("kfxe.airspace.crossing"));
+        assertThat(event.getDevice(), is("KFXE"));
+        assertThat(event.getUtcTime(), is(LocalDateTime.of(2026, 11, 3, 3, 52, 0)));
+        assertThat(event.getData().get("title"), is("C172 will cross KFXE airspace in ~4 min"));
+        assertThat(event.getData().get("body"), is("030352Z, N123AB approaching from N, 12.0 NM out, 26.3973,-80.1707, 1,800 ft, 120 kt, 180°"));
     }
 }

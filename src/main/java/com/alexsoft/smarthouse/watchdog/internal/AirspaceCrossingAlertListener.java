@@ -15,7 +15,7 @@ public class AirspaceCrossingAlertListener {
 
     @EventListener
     public void onAirspaceCrossingAlert(AirspaceCrossingAlertEvent event) {
-        log.info("Sending FCM gentle alert for KFXE crossing: {} — {}", event.title(), event.body());
-        fcmService.sendAlert(event.title(), event.body(), "gentle");
+        log.info("KFXE crossing alert event received (FCM disabled for now): {} — {}", event.title(), event.body());
+        // fcmService.sendAlert(event.title(), event.body(), "gentle");
     }
 }
