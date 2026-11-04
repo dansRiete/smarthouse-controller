@@ -101,12 +101,13 @@ public class ScheduledService {
         applianceService.getApplianceByCode("AC").ifPresent(ac -> {
             LocalDateTime utc = getUtc();
             LocalDateTime local = getLocalDateTime();
+            double stateOffset = ac.getState() == ON ? 0.02 : 0.0;
             indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
                     .locationId("AC-THRESHOLD-ON").utcTime(utc).localTime(local)
-                    .value(ac.getSetting() + ac.getHysteresisOn()).build());
+                    .value(ac.getSetting() + ac.getHysteresisOn() + stateOffset).build());
             indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
                     .locationId("AC-THRESHOLD-OFF").utcTime(utc).localTime(local)
-                    .value(ac.getSetting() - ac.getHysteresisOff()).build());
+                    .value(ac.getSetting() - ac.getHysteresisOff() + stateOffset).build());
         });
     }
 

@@ -1,6 +1,7 @@
 package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.appliance.Appliance;
+import com.alexsoft.smarthouse.appliance.ApplianceState;
 import com.alexsoft.smarthouse.environment.IndicationV3;
 import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
@@ -105,5 +106,24 @@ class ScheduledServiceAcThresholdsTest {
 
         assertThat(on,  is(27.0));   // 25.0 + 2.0
         assertThat(off, is(22.0));   // 25.0 - 3.0
+    }
+
+    @Test
+    void saveAcThresholds_whenAcIsOn_addsZeroPointZeroTwoOffsetToBothThresholds() {
+        Appliance a = ac(24.75, 0.5, 1.0);
+        a.setState(ApplianceState.ON);
+        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
+
+        scheduledService.saveAcThresholds();
+
+        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+        verify(indicationServiceV3, times(2)).save(captor.capture());
+
+        List<IndicationV3> saved = captor.getAllValues();
+        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+
+        assertThat(on,  is(25.25 + 0.02));   // 24.75 + 0.5 + 0.02
+        assertThat(off, is(23.75 + 0.02));   // 24.75 - 1.0 + 0.02
     }
 }
