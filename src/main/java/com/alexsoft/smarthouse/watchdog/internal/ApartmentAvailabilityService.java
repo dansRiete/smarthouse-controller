@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -29,16 +27,10 @@ public class ApartmentAvailabilityService {
 
     private static final String API_URL = "https://doorway-api.knockrentals.com/v1/property/2012283/units";
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void onStartup() {
-        log.info("Running initial apartment availability check on startup...");
-        checkAvailability();
-    }
-
-    // Runs twice a day at 10:00 AM and 6:00 PM
-    @Scheduled(cron = "0 0 10,18 * * *")
+    // Runs every Saturday at 10:00 AM Eastern Time
+    @Scheduled(cron = "0 0 10 * * SAT", zone = "America/New_York")
     public void onSchedule() {
-        log.info("Running scheduled 10:00 AM / 6:00 PM apartment availability check...");
+        log.info("Running scheduled Saturday 10:00 AM ET apartment availability check...");
         checkAvailability();
     }
 
