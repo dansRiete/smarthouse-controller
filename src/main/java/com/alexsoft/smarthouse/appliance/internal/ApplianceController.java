@@ -51,6 +51,8 @@ public class ApplianceController {
                                                             HttpServletRequest request) {
         Map<String, Object> eventData = new HashMap<>();
         if (requesterId != null) eventData.put("requesterId", requesterId);
+        String appVersion = request.getHeader("X-App-Version");
+        if (appVersion != null) eventData.put("appVersion", appVersion);
         eventData.put("ip", extractIp(request));
         eventRepository.save(Event.builder().utcTime(getUtc()).type("http.request").device(null).data(eventData).build());
         List<Appliance> appliances = applianceService.getAllAppliances(requesterId);
@@ -154,6 +156,8 @@ public class ApplianceController {
                 eventData.put("settingValue", appliance.getSetting());
             }
             if (requesterId != null) eventData.put("requesterId", requesterId);
+            String appVersion = request.getHeader("X-App-Version");
+            if (appVersion != null) eventData.put("appVersion", appVersion);
             eventData.put("ip", ip);
             eventRepository.save(Event.builder().utcTime(getUtc()).type("http.request").device(applianceCode).data(eventData).build());
 
