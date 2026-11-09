@@ -68,11 +68,11 @@ public class ScheduledService {
 
     @Scheduled(cron = "0 * * * * *")
     @Transactional
-    public void controlFanForDeh() {
-        controlFanForDeh(getUtc());
+    public void controlFanOnIdleAc() {
+        controlFanOnIdleAc(getUtc());
     }
 
-    public void controlFanForDeh(LocalDateTime utc) {
+    public void controlFanOnIdleAc(LocalDateTime utc) {
         applianceService.getApplianceByCodeReadOnly("AC").ifPresent(ac -> {
             if (ac.getState() != OFF) {
                 return;

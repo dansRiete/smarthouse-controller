@@ -84,7 +84,7 @@ class ScheduledServiceAcIdleCycleTest {
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
     when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
 
-    scheduledService.controlFanForDeh(checkUtc);
+    scheduledService.controlFanOnIdleAc(checkUtc);
 
     verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(checkUtc), eq("ac-idle"), eq(true));
     verify(applianceFacade, never()).toggle(eq(fan), eq(ON), any(), anyString(), eq(true));
@@ -104,25 +104,25 @@ class ScheduledServiceAcIdleCycleTest {
 
     // 00:00 EST (05:00 UTC) -> FAN ON
     LocalDateTime t0000 = LocalDateTime.of(2026, 11, 9, 5, 0);
-    scheduledService.controlFanForDeh(t0000);
+    scheduledService.controlFanOnIdleAc(t0000);
     verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0000), eq("ac-idle"), eq(true));
     assertThat(fan.getState(), is(ON));
 
     // 00:09 EST (05:09 UTC) -> FAN still ON
     LocalDateTime t0009 = LocalDateTime.of(2026, 11, 9, 5, 9);
-    scheduledService.controlFanForDeh(t0009);
+    scheduledService.controlFanOnIdleAc(t0009);
     verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0009), eq("ac-idle"), eq(true));
     assertThat(fan.getState(), is(ON));
 
     // 00:10 EST (05:10 UTC) -> FAN OFF
     LocalDateTime t0010 = LocalDateTime.of(2026, 11, 9, 5, 10);
-    scheduledService.controlFanForDeh(t0010);
+    scheduledService.controlFanOnIdleAc(t0010);
     verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0010), eq("ac-idle"), eq(true));
     assertThat(fan.getState(), is(OFF));
 
     // Next hour 01:00 EST (06:00 UTC) -> FAN ON again
     LocalDateTime t0100 = LocalDateTime.of(2026, 11, 9, 6, 0);
-    scheduledService.controlFanForDeh(t0100);
+    scheduledService.controlFanOnIdleAc(t0100);
     verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0100), eq("ac-idle"), eq(true));
     assertThat(fan.getState(), is(ON));
   }
@@ -140,7 +140,7 @@ class ScheduledServiceAcIdleCycleTest {
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
     when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
 
-    scheduledService.controlFanForDeh(checkUtc);
+    scheduledService.controlFanOnIdleAc(checkUtc);
 
     verify(applianceFacade, never()).toggle(any(), any(), any(), anyString(), eq(true));
   }

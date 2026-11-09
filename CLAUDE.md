@@ -18,7 +18,7 @@ Spring Boot 3.4.0 IoT home automation backend. Runs on a local server (i7-4770k)
 |---|---|---|---|
 | `AC` | Air Conditioner | Temperature (setting=25, hyst=0.5, min off=15m, min on=10m) | — (custom MQTT) |
 | `DEH` | Dehumidifier | Absolute humidity (setting=10, hyst=0.5, min off=10m, min on=30m) | `zigbee2mqtt/lr-sp-dehumidifier/set` |
-| `FAN` | Ventilation | Controlled by DEH power consumption logic | — (custom MQTT) |
+| `FAN` | Ventilation | Runs first 10 minutes of each hour when AC has been off >= 60 minutes | — (custom MQTT) |
 | `LR-LUTV` | LR Led Under TV | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/lr-led-under-tv/set` |
 | `MB-LOB` | MB Led Over Bed | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/mb-led-over-bed/set` |
 | `MB-LOTV` | MB Led Over TV | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/mb-led-over-tv/set` |
@@ -44,7 +44,7 @@ powerControl()
 
 **Inverted logic** (used by lights): ON when avg < setting - hysteresis, OFF when avg > setting + hysteresis.
 
-**AC special case**: When AC is OFF, FAN is toggled on a minute-based schedule if dehumidifier power consumption > 500W.
+**AC special case**: When AC has been OFF for at least 60 minutes, FAN is turned ON for the first 10 minutes of each hour (`XX:00`–`XX:10`).
 
 ## Locking System
 
