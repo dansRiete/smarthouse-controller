@@ -5,6 +5,7 @@ import com.alexsoft.smarthouse.environment.IndicationServiceV3;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
 
 import com.alexsoft.smarthouse.environment.IndicationV3;
+import com.alexsoft.smarthouse.appliance.Appliance;
 import com.alexsoft.smarthouse.appliance.ApplianceState;
 import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +40,9 @@ public class ScheduledService {
     private final IndicationRepositoryV3 indicationRepositoryV3;
     private final IndicationServiceV3 indicationServiceV3;
     private final MessageSenderService messageSenderService;
+
+    private boolean acIdleCycleActive = false;
+    private LocalDateTime lastIdleCycleAcOffUtc = null;
 
 
     @Scheduled(cron = "0 * * * * *")
@@ -67,31 +72,84 @@ public class ScheduledService {
     @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void controlFanForDeh() {
-        applianceService.getApplianceByCodeReadOnly("AC").ifPresent(ac -> {
-            if (ac.getState() != OFF) return;
+        controlFanForDeh(getUtc());
+    }
 
-            LocalDateTime utc = getUtc();
+    public void controlFanForDeh(LocalDateTime utc) {
+        applianceService.getApplianceByCode("AC").ifPresent(ac -> {
             LocalDateTime now = toLocalDateTime(utc);
+            int minute = now.getMinute();
+            LocalDateTime hourStartUtc = utc.truncatedTo(ChronoUnit.HOURS);
+
+            if (minute < 8) {
+                if (ac.getState() == OFF && !ac.isLocked() && isAcIdleForAtLeastAnHour(ac, hourStartUtc)) {
+                    acIdleCycleActive = true;
+                    toggleFanIfControllable(ON, utc, now, "ac-idle");
+                    return;
+                } else {
+                    acIdleCycleActive = false;
+                }
+            } else if (minute < 10 && (acIdleCycleActive || (ac.getState() == OFF && !ac.isLocked() && isAcIdleForAtLeastAnHour(ac, hourStartUtc)))) {
+                acIdleCycleActive = true;
+                toggleFanIfControllable(OFF, utc, now, "ac-idle");
+                if (ac.getState() != ON) {
+                    applianceFacade.toggle(ac, ON, utc, "ac-idle", true);
+                }
+                ac.setLocked(true);
+                ac.setLockedUntilUtc(hourStartUtc.plusMinutes(10));
+                applianceService.saveOrUpdateAppliance(ac);
+                return;
+            } else if (minute == 10 && acIdleCycleActive) {
+                acIdleCycleActive = false;
+                ac.setLocked(false);
+                ac.setLockedUntilUtc(null);
+                applianceFacade.toggle(ac, OFF, utc, "ac-idle", true);
+                lastIdleCycleAcOffUtc = utc;
+            } else if (minute > 10) {
+                acIdleCycleActive = false;
+            }
+
+            if (ac.getState() != OFF) {
+                return;
+            }
+
             boolean fanNeedsToBeTurnedOn;
             if (now.getHour() > 22 || now.getHour() < 8) {
-                fanNeedsToBeTurnedOn = List.of(26, 27, 28, 29, 56, 57, 58, 59).contains(now.getMinute());
+                fanNeedsToBeTurnedOn = List.of(26, 27, 28, 29, 56, 57, 58, 59).contains(minute);
             } else {
-                fanNeedsToBeTurnedOn = List.of(17, 18, 19, 37, 38, 39, 57, 58, 59).contains(now.getMinute());
+                fanNeedsToBeTurnedOn = List.of(17, 18, 19, 37, 38, 39, 57, 58, 59).contains(minute);
             }
 
             LocalDateTime averageStart = utc.minus(Duration.ofMinutes(ac.getAveragePeriodMinutes()));
             OptionalDouble avgDehPower = indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
                     List.of("DEH"), averageStart, "power").stream().mapToDouble(IndicationV3::getValue).average();
 
-            applianceService.getApplianceByCode("FAN").ifPresent(fan -> {
-                if (fan.isLocked() || Boolean.FALSE.equals(fan.getSensorControlled())) {
-                    return;
-                }
-                ApplianceState target = avgDehPower.isPresent() && avgDehPower.getAsDouble() > 500 && fanNeedsToBeTurnedOn ? ON : OFF;
-                applianceFacade.toggle(fan, target, utc, "deh-on", true);
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
-                        .localTime(now).utcTime(utc).locationId("935-CORKWOOD-FAN").value(target == ON ? 1.0 : 0.0).build());
-            });
+            ApplianceState target = avgDehPower.isPresent() && avgDehPower.getAsDouble() > 500 && fanNeedsToBeTurnedOn ? ON : OFF;
+            toggleFanIfControllable(target, utc, now, "deh-on");
+        });
+    }
+
+    private boolean isAcIdleForAtLeastAnHour(Appliance ac, LocalDateTime hourStartUtc) {
+        if (ac.getSwitchedOff() == null) {
+            return false;
+        }
+        LocalDateTime switchedOffMinute = ac.getSwitchedOff().truncatedTo(ChronoUnit.MINUTES);
+        boolean previousWasIdleCycle = (lastIdleCycleAcOffUtc != null
+                && !ac.getSwitchedOff().isAfter(lastIdleCycleAcOffUtc.plusSeconds(5)))
+                || (ac.getDurationOnMinutes() != null && ac.getDurationOnMinutes() <= 2.0
+                && toLocalDateTime(ac.getSwitchedOff()).getMinute() == 10);
+        LocalDateTime threshold = previousWasIdleCycle ? hourStartUtc.minusMinutes(50) : hourStartUtc.minusHours(1);
+        return !switchedOffMinute.isAfter(threshold);
+    }
+
+    private void toggleFanIfControllable(ApplianceState target, LocalDateTime utc, LocalDateTime now, String requester) {
+        applianceService.getApplianceByCode("FAN").ifPresent(fan -> {
+            if (fan.isLocked() || Boolean.FALSE.equals(fan.getSensorControlled())) {
+                return;
+            }
+            applianceFacade.toggle(fan, target, utc, requester, true);
+            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
+                    .localTime(now).utcTime(utc).locationId("935-CORKWOOD-FAN").value(target == ON ? 1.0 : 0.0).build());
         });
     }
 
