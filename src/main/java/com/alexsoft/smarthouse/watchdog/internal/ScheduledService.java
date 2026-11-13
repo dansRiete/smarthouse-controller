@@ -66,7 +66,8 @@ public class ScheduledService {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    // todo periodic ventilation is deactivated; might need to be implemented configurable in the DB rather than hardcoding
+    // @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void controlFanOnIdleAc() {
         controlFanOnIdleAc(getUtc());
