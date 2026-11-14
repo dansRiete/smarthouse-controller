@@ -83,8 +83,6 @@ public class ApplianceService {
                     }
                 }
             }
-        } else if (!appliance.isLocked()) {
-            applianceFacade.toggle(appliance, appliance.getState(), utc, "pwr-control", true);
         }
 
         applianceFacade.sendState(appliance);

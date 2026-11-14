@@ -114,7 +114,7 @@ public class InfluxRepository {
                 point.addTag("unit", indication.getUnit());
             }
             point.addField(
-                            indication.getLocationId().equals("935-CORKWOOD-AC") ? "state" : indication.getMeasurementType(),
+                            indication.getMeasurementType(),
                             indication.getValue()
                     )
                     .time(indication.getUtcTime().atZone(java.time.ZoneOffset.UTC).toInstant(), WritePrecision.NS);

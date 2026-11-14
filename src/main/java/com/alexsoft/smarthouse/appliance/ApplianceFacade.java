@@ -38,9 +38,8 @@ public class ApplianceFacade {
             switched = true;
         }
 
-        if (appliance.getCode().equals("AC")) {
-            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state").localTime(toLocalDateTime(utc)).utcTime(utc)
-                    .locationId("935-CORKWOOD-AC").value(appliance.getState() == ON ? 1.0 : 0.0).build());
+        if (!sendMqtt) {
+            saveStateIndicationIfNeeded(appliance, utc);
         }
 
         setLock(appliance, utc, requester, switched);
@@ -88,7 +87,20 @@ public class ApplianceFacade {
             messageSenderService.sendMessage(MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC, "{\"device\":\"%s\",\"state\":\"%s\"}"
                     .formatted(appliance.getCode(), appliance.getState() == ON ? "on" : "off"));
         }
+        saveStateIndicationIfNeeded(appliance, getUtc());
+    }
 
+    private void saveStateIndicationIfNeeded(Appliance appliance, LocalDateTime utc) {
+        if ("AC".equals(appliance.getCode()) || "FAN".equals(appliance.getCode())) {
+            indicationServiceV3.save(IndicationV3.builder()
+                    .publisherId("i7-4770k")
+                    .measurementType("state")
+                    .localTime(toLocalDateTime(utc))
+                    .utcTime(utc)
+                    .locationId(appliance.getCode())
+                    .value(appliance.getState() == ON ? 1.0 : 0.0)
+                    .build());
+        }
     }
 
 }

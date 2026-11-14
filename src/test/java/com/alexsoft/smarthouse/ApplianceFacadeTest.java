@@ -136,4 +136,41 @@ class ApplianceFacadeTest {
         assertThat(appliance.isLocked(), is(false));
         verify(eventRepository, never()).save(argThat(e -> "locked-until".equals(e.getType())));
     }
+
+    @Test
+    void sendState_savesStateIndicationForAcAndFanWithCodeAsLocationId() {
+        Appliance ac = new Appliance();
+        ac.setCode("AC");
+        ac.setState(ON, UTC);
+
+        Appliance fan = new Appliance();
+        fan.setCode("FAN");
+        fan.setState(OFF, UTC);
+
+        facade.sendState(ac);
+        facade.sendState(fan);
+
+        verify(indicationServiceV3).save(argThat(ind ->
+                "AC".equals(ind.getLocationId())
+                        && "state".equals(ind.getMeasurementType())
+                        && Double.valueOf(1.0).equals(ind.getValue())));
+        verify(indicationServiceV3).save(argThat(ind ->
+                "FAN".equals(ind.getLocationId())
+                        && "state".equals(ind.getMeasurementType())
+                        && Double.valueOf(0.0).equals(ind.getValue())));
+    }
+
+    @Test
+    void toggle_withSendMqttTrue_savesStateIndicationOnceForFan() {
+        Appliance fan = new Appliance();
+        fan.setCode("FAN");
+        fan.setState(OFF, UTC.minusHours(1));
+
+        facade.toggle(fan, ON, UTC, "http-controller", true);
+
+        verify(indicationServiceV3, times(1)).save(argThat(ind ->
+                "FAN".equals(ind.getLocationId())
+                        && "state".equals(ind.getMeasurementType())
+                        && Double.valueOf(1.0).equals(ind.getValue())));
+    }
 }

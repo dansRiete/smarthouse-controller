@@ -91,8 +91,6 @@ public class ScheduledService {
                 }
                 ApplianceState target = fanNeedsToBeTurnedOn ? ON : OFF;
                 applianceFacade.toggle(fan, target, utc, "ac-idle", true);
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("state")
-                        .localTime(now).utcTime(utc).locationId("935-CORKWOOD-FAN").value(target == ON ? 1.0 : 0.0).build());
             });
         });
     }
