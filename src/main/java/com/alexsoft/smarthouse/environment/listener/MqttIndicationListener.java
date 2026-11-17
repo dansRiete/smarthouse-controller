@@ -43,6 +43,7 @@ public class MqttIndicationListener {
                     Map<String, Object> air = (Map<String, Object>) map.get("air");
                     Map<String, Object> temp = air != null ? (Map<String, Object>) air.get("temp") : null;
                     Map<String, Object> pressure = air != null ? (Map<String, Object>) air.get("pressure") : null;
+                    Map<String, Object> co2 = air != null ? (Map<String, Object>) air.get("co2") : null;
 
                     IndicationV3Builder builder = IndicationV3.builder()
                             .localTime(getLocalDateTime())
@@ -77,6 +78,9 @@ public class MqttIndicationListener {
                         if (mmHg != null) {
                             indicationV3s.add(builder.measurementType("pressure").unit("mmHg").value(mmHg.doubleValue()).build());
                         }
+                    }
+                    if (co2 != null && co2.get("ppm") instanceof Number ppm) {
+                        indicationV3s.add(builder.measurementType("co2").unit("ppm").value(ppm.doubleValue()).build());
                     }
                     
                     if (map.get("measurementType") instanceof String mType && map.get("value") instanceof Number val) {
