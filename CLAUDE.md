@@ -183,8 +183,58 @@ Two thread pools handle scheduled work:
 - **Prometheus**: `http://192.168.0.201:30090` (NodePort)
 - **Grafana**: `http://192.168.0.201:30300` (NodePort), user `admin`
   - Password stored in k8s secret: `kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d`
+- **InfluxDB 2.x**: `http://192.168.0.201:8086` (in-cluster: `http://smarthouse-influxdb.smarthouse.svc.cluster.local:8086`)
+  - Organization: `Home`, Bucket: `smarthouse-bucket`
+  - Token stored in k8s secret: `kubectl get secret -n smarthouse smarthouse-secret -o jsonpath='{.data.INFLUXDB_TOKEN}' | base64 -d`
 
-### Key Grafana dashboards
+### SmartHouse Grafana Dashboards (InfluxDB Flux)
+
+- **Persistent Storage**: Grafana's `/var/lib/grafana` is persisted to `/home/alexkzk/grafana_data` (`hostPath`) on `192.168.0.201` (and search index to `/home/alexkzk/grafana_search`).
+- **Datasource**: Secret `smarthouse-influxdb-datasource` in namespace `monitoring` (label `grafana_datasource: "1"`). Exposes datasource name `InfluxDB` with **`uid: influxdb-smarthouse`** (`type: influxdb`, Flux mode, org `Home`, defaultBucket `smarthouse-bucket`).
+- **Dashboard Storage**: All 5 SmartHouse dashboards are stored directly in Grafana's database (`provisioned: false`, `canSave: true`, `canEdit: true`) so they can be edited and saved both via the **Grafana Web UI** and via the **Grafana HTTP API** (`/api/dashboards/uid/<uid>` and `/api/dashboards/db`).
+
+| Dashboard Title | UID | URL Path | Purpose |
+|---|---|---|---|
+| **1809 Jackson St, Hollywood, FL** | `smarthouse-1809-jackson-st` | `/d/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl` | Main home environment & appliances: Indoor Temp (°F), AH IN, CO2 (with calculated avg), AC/FAN State, Trends, Outdoor Temp/AH, Illuminance, Smart Plugs Power, AC & DEH State, AC vs Vibration, AC Thresholds, FL Outdoor Temp/RH/Humidity |
+| **Temp/Humidity Forecast** | `smarthouse-temp-humidity-forecast` | `/d/smarthouse-temp-humidity-forecast/temp-humidity-forecast` | `-7d` to `+16d` Temp, AH, RH forecast for Fort Lauderdale + AVWX airport temperatures |
+| **BTC** | `smarthouse-btc` | `/d/smarthouse-btc/btc` | BTC/USD price history (`location_id == "BTC"`) |
+| **i9-12900k Telemetry** | `smarthouse-i9-12900k-telemetry` | `/d/smarthouse-i9-12900k-telemetry/i9-12900k-telemetry` | Desktop telemetry: CPU/GPU/Coolant Temp, NVMe/SSD Temp, Load %, Fan Speeds (%), Fan Speeds (RPM) |
+| **i7-4770k Telemetry** | `smarthouse-i7-4770k-telemetry` | `/d/smarthouse-i7-4770k-telemetry/i7-4770k-telemetry` | Server telemetry: CPU/Chassis/HDD/SSD Temp, Load %, HDD Active state, System Fan RPM |
+
+#### Dashboard Visual Conventions & Flux Guidelines
+
+1. **Standard Series Color Overrides** (applied via `fieldConfig.overrides` with `byRegexp` matcher):
+   - **Living Room** (`.*(LIVING-ROOM|935-CORKWOOD-LR).*`): **Red** (`#F2495C`)
+   - **Bedroom** (`.*(BEDROOM|935-CORKWOOD-MB).*`): **Blue** (`#3274D9`)
+   - **Average** (`.*(1809-JACKSON-ST-AVG|935-CORKWOOD-AVG).*`): **Green** (`#56A64B`)
+   - **AC Thresholds** (`.*(AC-THRESHOLD-ON|AC-THRESHOLD-OFF).*`): **Grey** (`#8E8E8E`)
+2. **Display Name**: Use `${__field.labels.location_id}` (or `${__field.labels.location_id} (${__field.name})` for multi-query panels) so series legends show clean location names.
+3. **Flux Multi-Sensor Averaging Gotcha (Mobile Zoom)**:
+   - Room sensors publish every 5 seconds at slightly different timestamps. On mobile or zoomed-in views (`15m`), Grafana sets `v.windowPeriod` to `2s`.
+   - When computing a cross-sensor average in Flux (like average CO2), **always** use `createEmpty: true` and `|> fill(usePrevious: true)` before grouping by `_time` and calling `|> mean()`. Otherwise, 2-second buckets alternate between individual sensors and cause the average line to zig-zag across the chart:
+     ```flux
+     from(bucket: "smarthouse-bucket")
+       |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+       |> filter(fn: (r) => r["unit"] == "ppm")
+       |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)
+       |> fill(usePrevious: true)
+       |> group(columns: ["_time", "_field", "_measurement"])
+       |> mean()
+       |> map(fn: (r) => ({ r with location_id: "1809-JACKSON-ST-AVG" }))
+       |> group(columns: ["_field", "_measurement", "location_id"])
+       |> yield(name: "avg")
+     ```
+4. **Updating a Grafana Dashboard Programmatically**:
+   - Always fetch the latest dashboard JSON from Grafana first via `GET http://localhost:30300/api/dashboards/uid/<uid>` (so any UI edits made by the user are preserved), modify the `dashboard` object, and save it back via `POST http://localhost:30300/api/dashboards/db` with `{"dashboard": ..., "overwrite": true, "message": "..."}`:
+     ```bash
+     ssh 192.168.0.201 '
+       GRAFANA_PASS=$(kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d)
+       curl -s -u "admin:$GRAFANA_PASS" http://localhost:30300/api/dashboards/uid/smarthouse-1809-jackson-st
+     '
+     ```
+   - Test Flux queries directly against Grafana's query API via `POST http://localhost:30300/api/ds/query` with `"datasource": {"type": "influxdb", "uid": "influxdb-smarthouse"}`.
+
+### Infrastructure & JVM Grafana dashboards
 
 | Priority | Dashboard | UID | Use for |
 |---|---|---|---|
