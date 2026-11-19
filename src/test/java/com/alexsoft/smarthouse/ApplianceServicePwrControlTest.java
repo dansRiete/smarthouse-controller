@@ -10,6 +10,7 @@ import com.alexsoft.smarthouse.appliance.ApplianceFacade;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
 import com.alexsoft.smarthouse.appliance.internal.ApartmentDetailsService;
 import com.alexsoft.smarthouse.environment.IndicationServiceV3;
+import com.alexsoft.smarthouse.environment.IndicationV3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -227,12 +228,12 @@ class ApplianceServicePwrControlTest {
 
         // Mock average AH
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
-                eq(deh.getReferenceSensors()), any(), eq("ah")))
+                anyList(), any(), eq("ah")))
                 .thenReturn(Optional.of(12.5));
 
         // Mock average RH
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
-                eq(deh.getReferenceSensors()), any(), eq("rh")))
+                anyList(), any(), eq("rh")))
                 .thenReturn(Optional.of(65.0));
 
         applianceService.powerControl("DEH");
@@ -255,5 +256,54 @@ class ApplianceServicePwrControlTest {
                 "ah".equals(ind.getMeasurementType()) && 
                 ind.getValue() == 12.5
         ));
+    }
+
+    @Test
+    void multiSensorAverage_equalWeightsAndFallbackForSlowerSensor() {
+        Appliance deh = new Appliance();
+        deh.setCode("DEH");
+        deh.setState(OFF, LocalDateTime.now());
+        deh.setSetting(12.0);
+        deh.setHysteresisOn(0.5);
+        deh.setHysteresisOff(0.5);
+        deh.setReferenceSensors(List.of("LIVING-ROOM", "BEDROOM"));
+        deh.setMeasurementType("ah");
+        deh.setAveragePeriodMinutes(1);
+        deh.setMetricType("humidity");
+
+        when(applianceRepository.findById("DEH")).thenReturn(Optional.of(deh));
+        when(apartmentDetailsService.getLocationPrefix()).thenReturn("1809-JACKSON-ST");
+
+        // LIVING-ROOM has readings inside the 1-minute window (10.7), BEDROOM has none in the last 1 min
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                eq(List.of("LIVING-ROOM")), any(), eq("ah")))
+                .thenReturn(Optional.of(10.7));
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                eq(List.of("BEDROOM")), any(), eq("ah")))
+                .thenReturn(Optional.empty());
+
+        // BEDROOM's latest reading was ~75 seconds ago (within the 5-minute fallback window): 11.5
+        IndicationV3 recentBedroomAh = IndicationV3.builder()
+                .locationId("BEDROOM")
+                .measurementType("ah")
+                .value(11.5)
+                .utcTime(com.alexsoft.smarthouse.core.util.DateUtils.getUtc().minusSeconds(75))
+                .build();
+        when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("BEDROOM", "ah"))
+                .thenReturn(Optional.of(recentBedroomAh));
+
+        // RH averages for both sensors
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                eq(List.of("LIVING-ROOM")), any(), eq("rh")))
+                .thenReturn(Optional.of(50.0));
+        when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                eq(List.of("BEDROOM")), any(), eq("rh")))
+                .thenReturn(Optional.of(54.0));
+
+        applianceService.powerControl("DEH");
+
+        // Equal-weighted mean of 10.7 and 11.5 = 11.1
+        assertThat(deh.getActual(), is(11.1));
+        assertThat(deh.getActualRh(), is(52.0));
     }
 }

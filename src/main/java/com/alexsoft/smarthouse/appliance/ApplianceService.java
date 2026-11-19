@@ -57,11 +57,10 @@ public class ApplianceService {
             saveAverageIndication(appliance, average, utc, toLocalDateTime(utc));
 
             if ("ah".equals(appliance.getMeasurementType()) && !CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
-                LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
-                Optional<Double> avgRhOpt = indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
-                        appliance.getReferenceSensors(), averageStart, "rh");
+                OptionalDouble avgRhOpt = calculateEqualWeightedAverage(
+                        appliance.getReferenceSensors(), appliance.getAveragePeriodMinutes(), utc, "rh");
                 if (avgRhOpt.isPresent()) {
-                    double avgRh = avgRhOpt.get();
+                    double avgRh = avgRhOpt.getAsDouble();
                     appliance.setActualRh(avgRh);
                     String locationId = apartmentDetailsService.getLocationPrefix() + "-AVG";
                     indicationServiceV3.save(IndicationV3.builder().locationId(locationId).localTime(toLocalDateTime(utc)).utcTime(utc).publisherId("i7-4770k").value(avgRh)
@@ -130,14 +129,46 @@ public class ApplianceService {
 
     }
 
+    private static final int FALLBACK_MAX_AGE_MINUTES = 5;
+
     private OptionalDouble calculateAverage(Appliance appliance, LocalDateTime utc) {
-        if (CollectionUtils.isEmpty(appliance.getReferenceSensors())) {
+        return calculateEqualWeightedAverage(
+                appliance.getReferenceSensors(),
+                appliance.getAveragePeriodMinutes(),
+                utc,
+                appliance.getMeasurementType());
+    }
+
+    private OptionalDouble calculateEqualWeightedAverage(
+            List<String> referenceSensors, Integer averagePeriodMinutes, LocalDateTime utc, String measurementType) {
+        if (CollectionUtils.isEmpty(referenceSensors)) {
             return OptionalDouble.empty();
         }
-        LocalDateTime averageStart = utc.minus(Duration.ofMinutes(appliance.getAveragePeriodMinutes()));
-        return indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
-                        appliance.getReferenceSensors(), averageStart, appliance.getMeasurementType())
-                .map(OptionalDouble::of).orElse(OptionalDouble.empty());
+        int periodMin = averagePeriodMinutes != null ? averagePeriodMinutes : 1;
+        LocalDateTime averageStart = utc.minus(Duration.ofMinutes(periodMin));
+        LocalDateTime fallbackCutoff = utc.minus(Duration.ofMinutes(Math.max(periodMin, FALLBACK_MAX_AGE_MINUTES)));
+
+        double sum = 0.0;
+        int count = 0;
+        for (String sensorLocationId : referenceSensors) {
+            Optional<Double> sensorAvg = indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
+                    List.of(sensorLocationId), averageStart, measurementType);
+            if (sensorAvg.isPresent()) {
+                sum += sensorAvg.get();
+                count++;
+            } else {
+                Optional<IndicationV3> latest = indicationRepositoryV3
+                        .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(sensorLocationId, measurementType);
+                if (latest.isPresent()
+                        && latest.get().getValue() != null
+                        && latest.get().getUtcTime() != null
+                        && latest.get().getUtcTime().isAfter(fallbackCutoff)) {
+                    sum += latest.get().getValue();
+                    count++;
+                }
+            }
+        }
+        return count > 0 ? OptionalDouble.of(sum / count) : OptionalDouble.empty();
     }
 
     private void checkLock(Appliance appliance, LocalDateTime utc) {
