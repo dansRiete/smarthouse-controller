@@ -6,6 +6,7 @@ import com.alexsoft.smarthouse.appliance.ApplianceService;
 import com.alexsoft.smarthouse.appliance.ApplianceState;
 import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.environment.IndicationServiceV3;
+import com.alexsoft.smarthouse.environment.IndicationV3;
 import com.alexsoft.smarthouse.mqtt.MessageSenderService;
 import com.alexsoft.smarthouse.watchdog.internal.ScheduledService;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static com.alexsoft.smarthouse.appliance.ApplianceState.OFF;
@@ -40,18 +42,19 @@ class ScheduledServiceAcIdleCycleTest {
 
   @InjectMocks ScheduledService scheduledService;
 
-  private Appliance createAc(ApplianceState state, LocalDateTime switchedOnUtc, LocalDateTime switchedOffUtc) {
+  private Appliance createAc(ApplianceState state) {
     Appliance ac = new Appliance();
     ac.setCode("AC");
-    if (switchedOnUtc != null) {
-      ac.setState(ON, switchedOnUtc);
-    }
-    if (state == OFF && switchedOffUtc != null) {
-      ac.setState(OFF, switchedOffUtc);
-    } else {
-      ac.setState(state);
-    }
+    ac.setState(state);
+    ac.setAveragePeriodMinutes(1);
     return ac;
+  }
+
+  private Appliance createDeh(String zigbeeTopic) {
+    Appliance deh = new Appliance();
+    deh.setCode("DEH");
+    deh.setZigbee2MqttTopic(zigbeeTopic);
+    return deh;
   }
 
   private Appliance createFan(ApplianceState state) {
@@ -59,6 +62,14 @@ class ScheduledServiceAcIdleCycleTest {
     fan.setCode("FAN");
     fan.setState(state);
     return fan;
+  }
+
+  private IndicationV3 powerReading(String locationId, double watts) {
+    return IndicationV3.builder()
+        .locationId(locationId)
+        .measurementType("power")
+        .value(watts)
+        .build();
   }
 
   private void stubToggleStateMutation() {
@@ -72,75 +83,92 @@ class ScheduledServiceAcIdleCycleTest {
   }
 
   @Test
-  void acOffLessThanOneHour_fanStaysOffAtTopOfHour() {
-    // AC turned off at 22:38 EST (03:38 UTC); at 23:00 EST (04:00 UTC) only 22 minutes elapsed
-    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 3, 22);
-    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 3, 38);
-    LocalDateTime checkUtc = LocalDateTime.of(2026, 11, 9, 4, 0);
-
-    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+  void dehRunning_runsFanDuring0To10And30To40Minutes() {
+    Appliance ac = createAc(OFF);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
     Appliance fan = createFan(OFF);
 
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh));
     when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
-
-    scheduledService.controlFanOnIdleAc(checkUtc);
-
-    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(checkUtc), eq("ac-idle"), eq(true));
-    verify(applianceFacade, never()).toggle(eq(fan), eq(ON), any(), anyString(), eq(true));
-  }
-
-  @Test
-  void acOffAtLeastOneHour_runsFanFirst10MinutesAndTurnsOffAtMinute10() {
-    // AC turned off at 22:38 EST (03:38 UTC); at 00:00 EST (05:00 UTC) 82 minutes elapsed
-    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 3, 22);
-    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 3, 38);
-    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
-    Appliance fan = createFan(OFF);
-
-    when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
-    when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
+    when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        eq(List.of("DEHUMIDIFIER")), any(), eq("power")))
+        .thenReturn(List.of(powerReading("DEHUMIDIFIER", 102.4)));
     stubToggleStateMutation();
 
     // 00:00 EST (05:00 UTC) -> FAN ON
     LocalDateTime t0000 = LocalDateTime.of(2026, 11, 9, 5, 0);
-    scheduledService.controlFanOnIdleAc(t0000);
-    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0000), eq("ac-idle"), eq(true));
+    scheduledService.controlFanForDeh(t0000);
+    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0000), eq("deh-on"), eq(true));
     assertThat(fan.getState(), is(ON));
 
     // 00:09 EST (05:09 UTC) -> FAN still ON
     LocalDateTime t0009 = LocalDateTime.of(2026, 11, 9, 5, 9);
-    scheduledService.controlFanOnIdleAc(t0009);
-    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0009), eq("ac-idle"), eq(true));
+    scheduledService.controlFanForDeh(t0009);
+    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0009), eq("deh-on"), eq(true));
     assertThat(fan.getState(), is(ON));
 
     // 00:10 EST (05:10 UTC) -> FAN OFF
     LocalDateTime t0010 = LocalDateTime.of(2026, 11, 9, 5, 10);
-    scheduledService.controlFanOnIdleAc(t0010);
-    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0010), eq("ac-idle"), eq(true));
+    scheduledService.controlFanForDeh(t0010);
+    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0010), eq("deh-on"), eq(true));
     assertThat(fan.getState(), is(OFF));
 
-    // Next hour 01:00 EST (06:00 UTC) -> FAN ON again
-    LocalDateTime t0100 = LocalDateTime.of(2026, 11, 9, 6, 0);
-    scheduledService.controlFanOnIdleAc(t0100);
-    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0100), eq("ac-idle"), eq(true));
+    // 00:30 EST (05:30 UTC) -> FAN ON
+    LocalDateTime t0030 = LocalDateTime.of(2026, 11, 9, 5, 30);
+    scheduledService.controlFanForDeh(t0030);
+    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0030), eq("deh-on"), eq(true));
     assertThat(fan.getState(), is(ON));
+
+    // 00:39 EST (05:39 UTC) -> FAN still ON
+    LocalDateTime t0039 = LocalDateTime.of(2026, 11, 9, 5, 39);
+    scheduledService.controlFanForDeh(t0039);
+    verify(applianceFacade).toggle(eq(fan), eq(ON), eq(t0039), eq("deh-on"), eq(true));
+    assertThat(fan.getState(), is(ON));
+
+    // 00:40 EST (05:40 UTC) -> FAN OFF
+    LocalDateTime t0040 = LocalDateTime.of(2026, 11, 9, 5, 40);
+    scheduledService.controlFanForDeh(t0040);
+    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0040), eq("deh-on"), eq(true));
+    assertThat(fan.getState(), is(OFF));
+  }
+
+  @Test
+  void dehPowerBelowThreshold_fanStaysOffInWindow() {
+    Appliance ac = createAc(OFF);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
+    Appliance fan = createFan(OFF);
+
+    when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh));
+    when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
+    when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        eq(List.of("DEHUMIDIFIER")), any(), eq("power")))
+        .thenReturn(List.of(powerReading("DEHUMIDIFIER", 5.0)));
+
+    LocalDateTime t0005 = LocalDateTime.of(2026, 11, 9, 5, 5);
+    scheduledService.controlFanForDeh(t0005);
+
+    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0005), eq("deh-on"), eq(true));
+    verify(applianceFacade, never()).toggle(eq(fan), eq(ON), any(), anyString(), eq(true));
   }
 
   @Test
   void fanLocked_doesNotToggleFan() {
-    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 2, 0);
-    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 2, 15);
-    LocalDateTime checkUtc = LocalDateTime.of(2026, 11, 9, 5, 0);
-
-    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance ac = createAc(OFF);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
     Appliance fan = createFan(OFF);
     fan.setLocked(true);
 
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh));
     when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
+    when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        eq(List.of("DEHUMIDIFIER")), any(), eq("power")))
+        .thenReturn(List.of(powerReading("DEHUMIDIFIER", 102.4)));
 
-    scheduledService.controlFanOnIdleAc(checkUtc);
+    LocalDateTime checkUtc = LocalDateTime.of(2026, 11, 9, 5, 0);
+    scheduledService.controlFanForDeh(checkUtc);
 
     verify(applianceFacade, never()).toggle(any(), any(), any(), anyString(), eq(true));
   }

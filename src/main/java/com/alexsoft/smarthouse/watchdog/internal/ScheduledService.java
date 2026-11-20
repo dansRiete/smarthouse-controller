@@ -35,6 +35,8 @@ public class ScheduledService {
 
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
+    private static final double DEH_OPERATING_POWER_THRESHOLD_WATTS = 50.0;
+
     private final ApplianceService applianceService;
     private final ApplianceFacade applianceFacade;
     private final IndicationRepositoryV3 indicationRepositoryV3;
@@ -48,9 +50,10 @@ public class ScheduledService {
         applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
             if (deh.getState() != ON) return;
             if (deh.getSwitchedOn() == null || deh.getSwitchedOn().isAfter(getUtc().minusMinutes(5))) return;
-            indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEH", "power")
+            String powerLocationId = resolveDehPowerLocationId(deh.getZigbee2MqttTopic());
+            indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(powerLocationId, "power")
                     .ifPresent(last -> {
-                        if (last.getValue() < 50) {
+                        if (last.getValue() < DEH_OPERATING_POWER_THRESHOLD_WATTS) {
                             log.warn("deh.power.anomaly: state=ON but last power reading={}W — alerting", last.getValue());
                             //  todo create an appliance_group e.g. ALERTABLE_LIGHTS and assign in the DB instead of hardcoding here
                             messageSenderService.sendMessage("zigbee2mqtt/LED_OVER_TV/set", "{\"effect\": \"blink\"}");
@@ -66,33 +69,50 @@ public class ScheduledService {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
 
-    // todo periodic ventilation is deactivated; might need to be implemented configurable in the DB rather than hardcoding
-    // @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 * * * * *")
     @Transactional
-    public void controlFanOnIdleAc() {
-        controlFanOnIdleAc(getUtc());
+    public void controlFanForDeh() {
+        controlFanForDeh(getUtc());
     }
 
-    public void controlFanOnIdleAc(LocalDateTime utc) {
+    public void controlFanForDeh(LocalDateTime utc) {
         applianceService.getApplianceByCodeReadOnly("AC").ifPresent(ac -> {
             if (ac.getState() != OFF) {
                 return;
             }
 
             LocalDateTime now = toLocalDateTime(utc);
-            LocalDateTime hourStartUtc = utc.truncatedTo(ChronoUnit.HOURS);
-            boolean fanNeedsToBeTurnedOn = now.getMinute() < 10
-                    && ac.getSwitchedOff() != null
-                    && !ac.getSwitchedOff().truncatedTo(ChronoUnit.MINUTES).isAfter(hourStartUtc.minusHours(1));
+            int minute = now.getMinute();
+            boolean fanNeedsToBeTurnedOn = (minute < 10) || (minute >= 30 && minute < 40);
+
+            String dehLocationId = applianceService.getApplianceByCode("DEH")
+                    .map(deh -> resolveDehPowerLocationId(deh.getZigbee2MqttTopic()))
+                    .orElse("DEH");
+            int periodMin = ac.getAveragePeriodMinutes() != null ? ac.getAveragePeriodMinutes() : 1;
+            LocalDateTime averageStart = utc.minus(Duration.ofMinutes(periodMin));
+            OptionalDouble avgDehPower = indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+                    List.of(dehLocationId), averageStart, "power").stream().mapToDouble(IndicationV3::getValue).average();
 
             applianceService.getApplianceByCode("FAN").ifPresent(fan -> {
                 if (fan.isLocked() || Boolean.FALSE.equals(fan.getSensorControlled())) {
                     return;
                 }
-                ApplianceState target = fanNeedsToBeTurnedOn ? ON : OFF;
-                applianceFacade.toggle(fan, target, utc, "ac-idle", true);
+                ApplianceState target = avgDehPower.isPresent()
+                        && avgDehPower.getAsDouble() > DEH_OPERATING_POWER_THRESHOLD_WATTS
+                        && fanNeedsToBeTurnedOn ? ON : OFF;
+                applianceFacade.toggle(fan, target, utc, "deh-on", true);
             });
         });
+    }
+
+    private String resolveDehPowerLocationId(String zigbeeTopic) {
+        if (zigbeeTopic != null && zigbeeTopic.startsWith("zigbee2mqtt/")) {
+            String[] parts = zigbeeTopic.split("/");
+            if (parts.length >= 2 && !parts[1].isBlank()) {
+                return parts[1];
+            }
+        }
+        return "DEH";
     }
 
     @Scheduled(cron = "*/5 * * * * *")
