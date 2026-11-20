@@ -39,7 +39,6 @@ class ApplianceServicePwrControlTest {
     @Mock RequestRepository requestRepository;
     @Mock ApplianceFacade applianceFacade;
     @Mock EventRepository eventRepository;
-    @Mock ApartmentDetailsService apartmentDetailsService;
 
     @InjectMocks ApplianceService applianceService;
 
@@ -224,7 +223,6 @@ class ApplianceServicePwrControlTest {
         deh.setMetricType("humidity");
 
         when(applianceRepository.findById("DEH")).thenReturn(Optional.of(deh));
-        when(apartmentDetailsService.getLocationPrefix()).thenReturn("935-CORKWOOD");
 
         // Mock average AH
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(
@@ -245,15 +243,15 @@ class ApplianceServicePwrControlTest {
         assertThat(deh.getActualRh(), is(65.0));
 
         // Verify both average indications (AH and RH) were saved
-        verify(indicationServiceV3, atLeastOnce()).save(argThat(ind -> 
-                ind.getLocationId().equals("935-CORKWOOD-AVG") && 
-                "rh".equals(ind.getMeasurementType()) && 
+        verify(indicationServiceV3, atLeastOnce()).save(argThat(ind ->
+                ind.getLocationId().equals("AVERAGE") &&
+                "rh".equals(ind.getMeasurementType()) &&
                 ind.getValue() == 65.0
         ));
-        
-        verify(indicationServiceV3, atLeastOnce()).save(argThat(ind -> 
-                ind.getLocationId().equals("935-CORKWOOD-AVG") && 
-                "ah".equals(ind.getMeasurementType()) && 
+
+        verify(indicationServiceV3, atLeastOnce()).save(argThat(ind ->
+                ind.getLocationId().equals("AVERAGE") &&
+                "ah".equals(ind.getMeasurementType()) &&
                 ind.getValue() == 12.5
         ));
     }
@@ -272,7 +270,6 @@ class ApplianceServicePwrControlTest {
         deh.setMetricType("humidity");
 
         when(applianceRepository.findById("DEH")).thenReturn(Optional.of(deh));
-        when(apartmentDetailsService.getLocationPrefix()).thenReturn("1809-JACKSON-ST");
 
         // LIVING-ROOM has readings inside the 1-minute window (10.7), BEDROOM has none in the last 1 min
         when(indicationRepositoryV3.findAvgValueByLocationIdInAndUtcTimeAfterAndMeasurementType(

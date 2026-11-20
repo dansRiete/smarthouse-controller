@@ -30,6 +30,7 @@ import static com.alexsoft.smarthouse.core.util.DateUtils.toLocalDateTime;
 public class ApplianceService {
 
     public static final String MQTT_SMARTHOUSE_POWER_CONTROL_TOPIC = "mqtt.smarthouse.power.control";
+    public static final String AVERAGE_LOCATION_ID = "AVERAGE";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApplianceService.class);
 
@@ -40,7 +41,6 @@ public class ApplianceService {
     private final RequestRepository requestRepository;
     private final ApplianceFacade applianceFacade;
     private final EventRepository eventRepository;
-    private final ApartmentDetailsService apartmentDetailsService;
 
     @Transactional
     public void powerControl(String applianceCode) {
@@ -62,9 +62,8 @@ public class ApplianceService {
                 if (avgRhOpt.isPresent()) {
                     double avgRh = avgRhOpt.getAsDouble();
                     appliance.setActualRh(avgRh);
-                    String locationId = apartmentDetailsService.getLocationPrefix() + "-AVG";
-                    indicationServiceV3.save(IndicationV3.builder().locationId(locationId).localTime(toLocalDateTime(utc)).utcTime(utc).publisherId("i7-4770k").value(avgRh)
-                            .measurementType("rh").build());
+                    indicationServiceV3.save(IndicationV3.builder().locationId(AVERAGE_LOCATION_ID).localTime(toLocalDateTime(utc)).utcTime(utc)
+                            .publisherId("i7-4770k").value(avgRh).measurementType("rh").build());
                 }
             }
             if (!appliance.isLocked() && appliance.getSetting() != null) {
@@ -194,9 +193,8 @@ public class ApplianceService {
         String metricType = appliance.getMetricType();
         if (metricType.equals("temp") || metricType.equals("humidity")) {
             String type = metricType.equals("humidity") ? "ah" : "temp";
-            String locationId = apartmentDetailsService.getLocationPrefix() + "-AVG";
-            indicationServiceV3.save(IndicationV3.builder().locationId(locationId).localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
-                    .measurementType(type).value(average).build());
+            indicationServiceV3.save(IndicationV3.builder().locationId(AVERAGE_LOCATION_ID).localTime(now).utcTime(utc).publisherId("i7-4770k").value(average)
+                    .measurementType(type).build());
         }
     }
 }

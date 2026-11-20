@@ -3,6 +3,7 @@ package com.alexsoft.smarthouse.environment.listener;
 import com.alexsoft.smarthouse.environment.IndicationServiceV3;
 import com.alexsoft.smarthouse.environment.IndicationV3;
 import com.alexsoft.smarthouse.environment.IndicationV3.IndicationV3Builder;
+import com.alexsoft.smarthouse.environment.LocationOverrideService;
 import com.alexsoft.smarthouse.mqtt.MqttMessageReceivedEvent;
 import com.alexsoft.smarthouse.core.util.TempUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,6 +26,7 @@ import static com.alexsoft.smarthouse.core.util.DateUtils.getUtc;
 public class MqttIndicationListener {
 
     private final IndicationServiceV3 indicationServiceV3;
+    private final LocationOverrideService locationOverrideService;
     private final TempUtils tempUtils = new TempUtils();
     private static final List<String> MEASUREMENT_TYPES = List.of("power", "voltage", "current");
     private static final Map<String, String> UNITS_MAP = Map.of("power", "W", "voltage", "V", "current", "A");
@@ -37,7 +39,7 @@ public class MqttIndicationListener {
             if (topic != null && topic.startsWith("mqtt.smarthouse")) {
                 Map<String, Object> map = new ObjectMapper().readValue(payload, new TypeReference<>() {});
                 String publisherId = (String) map.get("publisherId");
-                String locationId = (String) map.get("measurePlace");
+                String locationId = locationOverrideService.resolve((String) map.get("measurePlace"));
 
                 if (publisherId != null && locationId != null) {
                     Map<String, Object> air = (Map<String, Object>) map.get("air");
@@ -100,7 +102,7 @@ public class MqttIndicationListener {
             } else if (topic != null && !topic.startsWith("zigbee2mqtt/bridge") && !topic.endsWith("/set")) {
                 List<IndicationV3> indicationV3s = new ArrayList<>();
                 Map<String, Object> map = new ObjectMapper().readValue(payload, new TypeReference<>() {});
-                String deviceId = topic.split("/")[1];
+                String deviceId = locationOverrideService.resolve(topic.split("/")[1]);
                 IndicationV3Builder indicationV3Builder = IndicationV3.builder().mqttTopic(topic).localTime(getLocalDateTime())
                         .utcTime(getUtc()).publisherId("zigbee2mqtt").locationId(deviceId);
 

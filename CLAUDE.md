@@ -205,9 +205,12 @@ Two thread pools handle scheduled work:
 
 1. **Standard Series Color Overrides** (applied via `fieldConfig.overrides` with `byRegexp` matcher):
    - **Living Room** (`.*(LIVING-ROOM|935-CORKWOOD-LR).*`): **Red** (`#F2495C`)
-   - **Bedroom** (`.*(BEDROOM|935-CORKWOOD-MB).*`): **Blue** (`#3274D9`)
-   - **Average** (`.*(1809-JACKSON-ST-AVG|935-CORKWOOD-AVG).*`): **Green** (`#56A64B`)
-   - **AC Thresholds** (`.*(AC-THRESHOLD-ON|AC-THRESHOLD-OFF).*`): **Grey** (`#8E8E8E`)
+   - **Bedroom** (`.*(BEDROOM|935-CORKWOOD-MB|935-CORKWOOD-B).*`): **Blue** (`#3274D9`)
+   - **Average** (`.*(AVERAGE|1809-JACKSON-ST-AVG|935-CORKWOOD-AVG).*`): **Green** (`#56A64B`)
+   - **AC Thresholds** (`.*(AC-THRESHOLD-ON|AC-THRESHOLD-OFF).*`): **Grey** (`#8E8E8E`), `spanNulls: 15000`
+2. **Location IDs & DB Overrides**:
+   - Calculated home averages (Temp, AH, RH) are saved under `location_id = "AVERAGE"` (`ApplianceService.AVERAGE_LOCATION_ID`).
+   - Incoming MQTT sensor `locationId` remappings are configured in `main.global_settings` under key `location_id_overrides` as a JSON map (e.g., `{"935-CORKWOOD-B": "BEDROOM"}`), cached for 1 minute by `LocationOverrideService` and applied in `MqttIndicationListener`.
 2. **Display Name**: Use `${__field.labels.location_id}` (or `${__field.labels.location_id} (${__field.name})` for multi-query panels) so series legends show clean location names.
 3. **Flux Multi-Sensor Averaging Gotcha (Mobile Zoom)**:
    - Room sensors publish every 5 seconds at slightly different timestamps. On mobile or zoomed-in views (`15m`), Grafana sets `v.windowPeriod` to `2s`.
