@@ -42,18 +42,30 @@ class ScheduledServiceAcIdleCycleTest {
 
   @InjectMocks ScheduledService scheduledService;
 
-  private Appliance createAc(ApplianceState state) {
+  private Appliance createAc(ApplianceState state, LocalDateTime switchedOnUtc, LocalDateTime switchedOffUtc) {
     Appliance ac = new Appliance();
     ac.setCode("AC");
-    ac.setState(state);
     ac.setAveragePeriodMinutes(1);
+    if (switchedOnUtc != null) {
+      ac.setState(ON, switchedOnUtc);
+    }
+    if (state == OFF && switchedOffUtc != null) {
+      ac.setState(OFF, switchedOffUtc);
+    } else {
+      ac.setState(state);
+    }
     return ac;
   }
 
-  private Appliance createDeh(String zigbeeTopic) {
+  private Appliance createDeh(String zigbeeTopic, ApplianceState state, LocalDateTime switchedOnUtc) {
     Appliance deh = new Appliance();
     deh.setCode("DEH");
     deh.setZigbee2MqttTopic(zigbeeTopic);
+    if (switchedOnUtc != null) {
+      deh.setState(state, switchedOnUtc);
+    } else {
+      deh.setState(state);
+    }
     return deh;
   }
 
@@ -83,9 +95,12 @@ class ScheduledServiceAcIdleCycleTest {
   }
 
   @Test
-  void dehRunning_runsFanDuring0To10And30To40Minutes() {
-    Appliance ac = createAc(OFF);
-    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
+  void dehRunningAtLeast20MinAndAcOffAtLeast20Min_runsFanDuring0To10And30To40Minutes() {
+    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 4, 0);
+    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 4, 30); // 30m before 05:00
+    LocalDateTime dehOnUtc = LocalDateTime.of(2026, 11, 9, 4, 35); // 25m before 05:00
+    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set", ON, dehOnUtc);
     Appliance fan = createFan(OFF);
 
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
@@ -134,9 +149,58 @@ class ScheduledServiceAcIdleCycleTest {
   }
 
   @Test
+  void dehRunningLessThan20Minutes_fanStaysOff() {
+    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 4, 0);
+    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 4, 20);
+    LocalDateTime dehOnUtc = LocalDateTime.of(2026, 11, 9, 4, 45); // only 15m before 05:00
+    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set", ON, dehOnUtc);
+    Appliance fan = createFan(OFF);
+
+    when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh));
+    when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
+    when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        eq(List.of("DEHUMIDIFIER")), any(), eq("power")))
+        .thenReturn(List.of(powerReading("DEHUMIDIFIER", 102.4)));
+
+    LocalDateTime t0000 = LocalDateTime.of(2026, 11, 9, 5, 0);
+    scheduledService.controlFanForDeh(t0000);
+
+    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0000), eq("deh-on"), eq(true));
+    verify(applianceFacade, never()).toggle(eq(fan), eq(ON), any(), anyString(), eq(true));
+  }
+
+  @Test
+  void acTurnedOffLessThan20MinutesAgo_fanStaysOff() {
+    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 4, 35);
+    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 4, 50); // only 10m before 05:00
+    LocalDateTime dehOnUtc = LocalDateTime.of(2026, 11, 9, 4, 15); // 45m before 05:00
+    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set", ON, dehOnUtc);
+    Appliance fan = createFan(OFF);
+
+    when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh));
+    when(applianceService.getApplianceByCode("FAN")).thenReturn(Optional.of(fan));
+    when(indicationRepositoryV3.findByLocationIdInAndUtcTimeIsAfterAndMeasurementType(
+        eq(List.of("DEHUMIDIFIER")), any(), eq("power")))
+        .thenReturn(List.of(powerReading("DEHUMIDIFIER", 102.4)));
+
+    LocalDateTime t0000 = LocalDateTime.of(2026, 11, 9, 5, 0);
+    scheduledService.controlFanForDeh(t0000);
+
+    verify(applianceFacade).toggle(eq(fan), eq(OFF), eq(t0000), eq("deh-on"), eq(true));
+    verify(applianceFacade, never()).toggle(eq(fan), eq(ON), any(), anyString(), eq(true));
+  }
+
+  @Test
   void dehPowerBelowThreshold_fanStaysOffInWindow() {
-    Appliance ac = createAc(OFF);
-    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
+    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 4, 0);
+    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 4, 20);
+    LocalDateTime dehOnUtc = LocalDateTime.of(2026, 11, 9, 4, 20);
+    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set", ON, dehOnUtc);
     Appliance fan = createFan(OFF);
 
     when(applianceService.getApplianceByCodeReadOnly("AC")).thenReturn(Optional.of(ac));
@@ -155,8 +219,11 @@ class ScheduledServiceAcIdleCycleTest {
 
   @Test
   void fanLocked_doesNotToggleFan() {
-    Appliance ac = createAc(OFF);
-    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set");
+    LocalDateTime acOnUtc = LocalDateTime.of(2026, 11, 9, 4, 0);
+    LocalDateTime acOffUtc = LocalDateTime.of(2026, 11, 9, 4, 20);
+    LocalDateTime dehOnUtc = LocalDateTime.of(2026, 11, 9, 4, 20);
+    Appliance ac = createAc(OFF, acOnUtc, acOffUtc);
+    Appliance deh = createDeh("zigbee2mqtt/DEHUMIDIFIER/set", ON, dehOnUtc);
     Appliance fan = createFan(OFF);
     fan.setLocked(true);
 

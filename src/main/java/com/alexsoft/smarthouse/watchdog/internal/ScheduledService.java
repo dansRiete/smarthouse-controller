@@ -36,6 +36,7 @@ public class ScheduledService {
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
     private static final double DEH_OPERATING_POWER_THRESHOLD_WATTS = 50.0;
+    private static final int DEH_FAN_MIN_CONTINUOUS_MINUTES = 20;
 
     private final ApplianceService applianceService;
     private final ApplianceFacade applianceFacade;
@@ -81,11 +82,21 @@ public class ScheduledService {
                 return;
             }
 
+            LocalDateTime twentyMinutesAgo = utc.minusMinutes(DEH_FAN_MIN_CONTINUOUS_MINUTES);
+            boolean acOffForAtLeast20Min = ac.getSwitchedOff() == null || !ac.getSwitchedOff().isAfter(twentyMinutesAgo);
+
             LocalDateTime now = toLocalDateTime(utc);
             int minute = now.getMinute();
             boolean fanNeedsToBeTurnedOn = (minute < 10) || (minute >= 30 && minute < 40);
 
-            String dehLocationId = applianceService.getApplianceByCode("DEH")
+            Optional<Appliance> dehOpt = applianceService.getApplianceByCode("DEH");
+            boolean dehOnForAtLeast20Min = dehOpt
+                    .map(deh -> deh.getState() == ON
+                            && deh.getSwitchedOn() != null
+                            && !deh.getSwitchedOn().isAfter(twentyMinutesAgo))
+                    .orElse(false);
+
+            String dehLocationId = dehOpt
                     .map(deh -> resolveDehPowerLocationId(deh.getZigbee2MqttTopic()))
                     .orElse("DEH");
             int periodMin = ac.getAveragePeriodMinutes() != null ? ac.getAveragePeriodMinutes() : 1;
@@ -97,7 +108,9 @@ public class ScheduledService {
                 if (fan.isLocked() || Boolean.FALSE.equals(fan.getSensorControlled())) {
                     return;
                 }
-                ApplianceState target = avgDehPower.isPresent()
+                ApplianceState target = acOffForAtLeast20Min
+                        && dehOnForAtLeast20Min
+                        && avgDehPower.isPresent()
                         && avgDehPower.getAsDouble() > DEH_OPERATING_POWER_THRESHOLD_WATTS
                         && fanNeedsToBeTurnedOn ? ON : OFF;
                 applianceFacade.toggle(fan, target, utc, "deh-on", true);

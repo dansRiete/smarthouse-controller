@@ -18,7 +18,7 @@ Spring Boot 3.4.0 IoT home automation backend. Runs on a local server (i7-4770k)
 |---|---|---|---|
 | `AC` | Air Conditioner | Temperature (setting=25, hyst=0.5, min off=15m, min on=10m) | — (custom MQTT) |
 | `DEH` | Dehumidifier | Absolute humidity (setting=10, hyst=0.5, min off=10m, min on=30m) | `zigbee2mqtt/lr-sp-dehumidifier/set` |
-| `FAN` | Ventilation | Runs twice an hour for 10 minutes (`XX:00`–`XX:10` and `XX:30`–`XX:40`) when AC is OFF and DEH is drawing > 50W | — (custom MQTT) |
+| `FAN` | Ventilation | Runs twice an hour for 10 minutes (`XX:00`–`XX:10` and `XX:30`–`XX:40`) when DEH has been continuously ON ≥ 20m (> 50W) and AC has been OFF ≥ 20m | — (custom MQTT) |
 | `LR-LUTV` | LR Led Under TV | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/lr-led-under-tv/set` |
 | `MB-LOB` | MB Led Over Bed | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/mb-led-over-bed/set` |
 | `MB-LOTV` | MB Led Over TV | Illuminance, inverted (setting=75, hyst=25) | `zigbee2mqtt/mb-led-over-tv/set` |
@@ -44,7 +44,7 @@ powerControl()
 
 **Inverted logic** (used by lights): ON when avg < setting - hysteresis, OFF when avg > setting + hysteresis.
 
-**DEH ventilation (`controlFanForDeh`)**: When AC is OFF and the dehumidifier (`DEHUMIDIFIER` / `DEH`) is actively running (`power > 50W`), FAN is turned ON twice an hour for 10 minutes (`XX:00`–`XX:10` and `XX:30`–`XX:40`).
+**DEH ventilation (`controlFanForDeh`)**: When DEH has been continuously ON for at least 20 minutes (and drawing `> 50W`) and AC has been OFF for at least 20 minutes, FAN is turned ON twice an hour for 10 minutes (`XX:00`–`XX:10` and `XX:30`–`XX:40`).
 
 ## Locking System
 
