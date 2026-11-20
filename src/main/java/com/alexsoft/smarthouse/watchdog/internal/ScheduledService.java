@@ -45,21 +45,26 @@ public class ScheduledService {
     private final MessageSenderService messageSenderService;
 
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "*/5 * * * * *")
     @Transactional
     public void checkDehPowerAnomaly() {
+        checkDehPowerAnomaly(getUtc());
+    }
+
+    public void checkDehPowerAnomaly(LocalDateTime utc) {
+        int localHour = toLocalDateTime(utc).getHour();
+        if (localHour < 9 || localHour >= 23) {
+            return;
+        }
         applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
             if (deh.getState() != ON) return;
-            if (deh.getSwitchedOn() == null || deh.getSwitchedOn().isAfter(getUtc().minusMinutes(5))) return;
+            if (deh.getSwitchedOn() == null || deh.getSwitchedOn().isAfter(utc.minusMinutes(5))) return;
             String powerLocationId = resolveDehPowerLocationId(deh.getZigbee2MqttTopic());
             indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(powerLocationId, "power")
                     .ifPresent(last -> {
                         if (last.getValue() < DEH_OPERATING_POWER_THRESHOLD_WATTS) {
                             log.warn("deh.power.anomaly: state=ON but last power reading={}W — alerting", last.getValue());
-                            //  todo create an appliance_group e.g. ALERTABLE_LIGHTS and assign in the DB instead of hardcoding here
-                            messageSenderService.sendMessage("zigbee2mqtt/LED_OVER_TV/set", "{\"effect\": \"blink\"}");
                             messageSenderService.sendMessage("zigbee2mqtt/LED_UNDER_TV/set", "{\"effect\": \"blink\"}");
-                            messageSenderService.sendMessage("zigbee2mqtt/LED_OVER_BED/set", "{\"effect\": \"blink\"}");
                         }
                     });
         });
