@@ -76,8 +76,8 @@ public class ScheduledService {
                             messageSenderService.sendMessage("zigbee2mqtt/LED_UNDER_TV/set", "{\"effect\": \"blink\"}");
                             if (lastDehFcmAlertUtc == null || !utc.isBefore(lastDehFcmAlertUtc.plusMinutes(DEH_FCM_REMINDER_MINUTES))) {
                                 fcmService.sendAlert(
-                                        "Dehumidifier bucket full",
-                                        "Dehumidifier bucket full - please empty the bucket.",
+                                        "Dehumidifier Bucket Full",
+                                        "Please empty the bucket",
                                         "gentle");
                                 lastDehFcmAlertUtc = utc;
                             }

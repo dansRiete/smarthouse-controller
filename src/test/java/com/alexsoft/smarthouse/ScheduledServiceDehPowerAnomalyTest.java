@@ -42,8 +42,8 @@ class ScheduledServiceDehPowerAnomalyTest {
   @InjectMocks ScheduledService scheduledService;
 
   private static final String BLINK_PAYLOAD = "{\"effect\": \"blink\"}";
-  private static final String FCM_TITLE = "Dehumidifier bucket full";
-  private static final String FCM_BODY = "Dehumidifier bucket full - please empty the bucket.";
+  private static final String FCM_TITLE = "Dehumidifier Bucket Full";
+  private static final String FCM_BODY = "Please empty the bucket";
   // 12:00 EST (17:00 UTC in November) — inside 9 AM to 11 PM window
   private static final LocalDateTime DAYTIME_UTC = LocalDateTime.of(2026, 11, 20, 17, 0);
 
