@@ -119,15 +119,20 @@ public class ScheduledService {
     @Transactional
     public void saveAcThresholds() {
         applianceService.getApplianceByCode("AC").ifPresent(ac -> {
+            if (ac.isLocked()) {
+                return;
+            }
             LocalDateTime utc = getUtc();
             LocalDateTime local = getLocalDateTime();
-            double stateOffset = ac.getState() == ON ? 0.02 : 0.0;
-            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
-                    .locationId("AC-THRESHOLD-ON").utcTime(utc).localTime(local)
-                    .value(ac.getSetting() + ac.getHysteresisOn() + stateOffset).build());
-            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
-                    .locationId("AC-THRESHOLD-OFF").utcTime(utc).localTime(local)
-                    .value(ac.getSetting() - ac.getHysteresisOff() + stateOffset).build());
+            if (ac.getState() == ON) {
+                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
+                        .locationId("AC-THRESHOLD-OFF").utcTime(utc).localTime(local)
+                        .value(ac.getSetting() - ac.getHysteresisOff()).build());
+            } else {
+                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
+                        .locationId("AC-THRESHOLD-ON").utcTime(utc).localTime(local)
+                        .value(ac.getSetting() + ac.getHysteresisOn()).build());
+            }
         });
     }
 

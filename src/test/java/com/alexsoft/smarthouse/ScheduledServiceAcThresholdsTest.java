@@ -1,12 +1,13 @@
 package com.alexsoft.smarthouse;
 
 import com.alexsoft.smarthouse.appliance.Appliance;
-import com.alexsoft.smarthouse.appliance.ApplianceState;
-import com.alexsoft.smarthouse.environment.IndicationV3;
-import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
+import com.alexsoft.smarthouse.appliance.ApplianceState;
+import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
 import com.alexsoft.smarthouse.environment.IndicationServiceV3;
+import com.alexsoft.smarthouse.environment.IndicationV3;
 import com.alexsoft.smarthouse.watchdog.internal.ScheduledService;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -14,116 +15,98 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ScheduledServiceAcThresholdsTest {
 
-    @Mock ApplianceService applianceService;
-    @Mock IndicationRepositoryV3 indicationRepositoryV3;
-    @Mock IndicationServiceV3 indicationServiceV3;
+  @Mock ApplianceService applianceService;
+  @Mock IndicationRepositoryV3 indicationRepositoryV3;
+  @Mock IndicationServiceV3 indicationServiceV3;
 
-    @InjectMocks ScheduledService scheduledService;
+  @InjectMocks ScheduledService scheduledService;
 
-    private Appliance ac(double setting, double hysteresisOn, double hysteresisOff) {
-        Appliance a = new Appliance();
-        a.setCode("AC");
-        a.setSetting(setting);
-        a.setHysteresisOn(hysteresisOn);
-        a.setHysteresisOff(hysteresisOff);
-        return a;
-    }
+  private Appliance ac(double setting, double hysteresisOn, double hysteresisOff, ApplianceState state) {
+    Appliance a = new Appliance();
+    a.setCode("AC");
+    a.setSetting(setting);
+    a.setHysteresisOn(hysteresisOn);
+    a.setHysteresisOff(hysteresisOff);
+    a.setState(state);
+    return a;
+  }
 
-    @Test
-    void saveAcThresholds_savesOnAndOffThresholds() {
-        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0)));
+  @Test
+  void saveAcThresholds_whenAcIsOff_savesOnlyUpperThresholdOn() {
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0, ApplianceState.OFF)));
 
-        scheduledService.saveAcThresholds();
+    scheduledService.saveAcThresholds();
 
-        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
-        verify(indicationServiceV3, times(2)).save(captor.capture());
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
 
-        List<IndicationV3> saved = captor.getAllValues();
-        IndicationV3 threshOn  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow();
-        IndicationV3 threshOff = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow();
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("AC-THRESHOLD-ON"));
+    assertThat(saved.getValue(), is(25.25)); // 24.75 + 0.5
+    assertThat(saved.getMeasurementType(), is("temp"));
+  }
 
-        assertThat(threshOn.getValue(),  is(25.25));   // 24.75 + 0.5
-        assertThat(threshOff.getValue(), is(23.75));   // 24.75 - 1.0
-        assertThat(threshOn.getMeasurementType(),  is("temp"));
-        assertThat(threshOff.getMeasurementType(), is("temp"));
-    }
+  @Test
+  void saveAcThresholds_whenAcIsOn_savesOnlyLowerThresholdOff() {
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0, ApplianceState.ON)));
 
-    @Test
-    void saveAcThresholds_acNotFound_savesNothing() {
-        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
+    scheduledService.saveAcThresholds();
 
-        scheduledService.saveAcThresholds();
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
 
-        verify(indicationServiceV3, never()).save(any());
-    }
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("AC-THRESHOLD-OFF"));
+    assertThat(saved.getValue(), is(23.75)); // 24.75 - 1.0
+    assertThat(saved.getMeasurementType(), is("temp"));
+  }
 
-    @Test
-    void saveAcThresholds_settingChanges_thresholdsFollowSetting() {
-        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(26.0, 0.5, 1.0)));
+  @Test
+  void saveAcThresholds_whenAcIsLocked_savesNothing() {
+    Appliance a = ac(24.75, 0.5, 1.0, ApplianceState.OFF);
+    a.setLocked(true);
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
 
-        scheduledService.saveAcThresholds();
+    scheduledService.saveAcThresholds();
 
-        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
-        verify(indicationServiceV3, times(2)).save(captor.capture());
+    verify(indicationServiceV3, never()).save(any());
+  }
 
-        List<IndicationV3> saved = captor.getAllValues();
-        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
-        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
+  @Test
+  void saveAcThresholds_acNotFound_savesNothing() {
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
 
-        assertThat(on,  is(26.5));   // 26.0 + 0.5
-        assertThat(off, is(25.0));   // 26.0 - 1.0
-    }
+    scheduledService.saveAcThresholds();
 
-    @Test
-    void saveAcThresholds_withScheduledHysteresis() {
-        Appliance a = ac(25.0, 0.5, 1.0);
-        a.setSchedule(java.util.Map.of(
-            "*", java.util.Map.of(
-                String.valueOf(java.time.ZonedDateTime.now(java.time.ZoneId.of("America/New_York")).getHour()), "/2.0/3.0"
-            )
-        ));
+    verify(indicationServiceV3, never()).save(any());
+  }
 
-        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
+  @Test
+  void saveAcThresholds_withScheduledHysteresis() {
+    Appliance a = ac(25.0, 0.5, 1.0, ApplianceState.OFF);
+    a.setSchedule(java.util.Map.of(
+        "*", java.util.Map.of(
+            String.valueOf(java.time.ZonedDateTime.now(java.time.ZoneId.of("America/New_York")).getHour()), "/2.0/3.0"
+        )
+    ));
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
 
-        scheduledService.saveAcThresholds();
+    scheduledService.saveAcThresholds();
 
-        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
-        verify(indicationServiceV3, times(2)).save(captor.capture());
-
-        List<IndicationV3> saved = captor.getAllValues();
-        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
-        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
-
-        assertThat(on,  is(27.0));   // 25.0 + 2.0
-        assertThat(off, is(22.0));   // 25.0 - 3.0
-    }
-
-    @Test
-    void saveAcThresholds_whenAcIsOn_addsZeroPointZeroTwoOffsetToBothThresholds() {
-        Appliance a = ac(24.75, 0.5, 1.0);
-        a.setState(ApplianceState.ON);
-        when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
-
-        scheduledService.saveAcThresholds();
-
-        ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
-        verify(indicationServiceV3, times(2)).save(captor.capture());
-
-        List<IndicationV3> saved = captor.getAllValues();
-        double on  = saved.stream().filter(i -> "AC-THRESHOLD-ON".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
-        double off = saved.stream().filter(i -> "AC-THRESHOLD-OFF".equals(i.getLocationId())).findFirst().orElseThrow().getValue();
-
-        assertThat(on,  is(25.25 + 0.02));   // 24.75 + 0.5 + 0.02
-        assertThat(off, is(23.75 + 0.02));   // 24.75 - 1.0 + 0.02
-    }
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
+    assertThat(captor.getValue().getLocationId(), is("AC-THRESHOLD-ON"));
+    assertThat(captor.getValue().getValue(), is(27.0)); // 25.0 + 2.0
+  }
 }
