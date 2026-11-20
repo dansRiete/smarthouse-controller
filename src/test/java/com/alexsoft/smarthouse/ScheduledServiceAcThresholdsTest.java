@@ -109,4 +109,58 @@ class ScheduledServiceAcThresholdsTest {
     assertThat(captor.getValue().getLocationId(), is("AC-THRESHOLD-ON"));
     assertThat(captor.getValue().getValue(), is(27.0)); // 25.0 + 2.0
   }
+
+  private Appliance deh(double setting, double hysteresisOn, double hysteresisOff, ApplianceState state) {
+    Appliance a = new Appliance();
+    a.setCode("DEH");
+    a.setSetting(setting);
+    a.setHysteresisOn(hysteresisOn);
+    a.setHysteresisOff(hysteresisOff);
+    a.setState(state);
+    return a;
+  }
+
+  @Test
+  void saveAcThresholds_whenDehIsOff_savesOnlyUpperThresholdOn() {
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(10.0, 0.5, 0.5, ApplianceState.OFF)));
+
+    scheduledService.saveAcThresholds();
+
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
+
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("DEH-THRESHOLD-ON"));
+    assertThat(saved.getValue(), is(10.5));
+    assertThat(saved.getMeasurementType(), is("ah"));
+  }
+
+  @Test
+  void saveAcThresholds_whenDehIsOn_savesOnlyLowerThresholdOff() {
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(10.0, 0.5, 0.5, ApplianceState.ON)));
+
+    scheduledService.saveAcThresholds();
+
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
+
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("DEH-THRESHOLD-OFF"));
+    assertThat(saved.getValue(), is(9.5));
+    assertThat(saved.getMeasurementType(), is("ah"));
+  }
+
+  @Test
+  void saveAcThresholds_whenDehIsLocked_savesNothing() {
+    Appliance d = deh(10.0, 0.5, 0.5, ApplianceState.ON);
+    d.setLocked(true);
+    when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(d));
+
+    scheduledService.saveAcThresholds();
+
+    verify(indicationServiceV3, never()).save(any());
+  }
 }

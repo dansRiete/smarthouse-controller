@@ -131,20 +131,25 @@ public class ScheduledService {
     @Scheduled(cron = "*/5 * * * * *")
     @Transactional
     public void saveAcThresholds() {
-        applianceService.getApplianceByCode("AC").ifPresent(ac -> {
-            if (ac.isLocked()) {
+        LocalDateTime utc = getUtc();
+        LocalDateTime local = getLocalDateTime();
+        saveActiveThreshold("AC", "temp", utc, local);
+        saveActiveThreshold("DEH", "ah", utc, local);
+    }
+
+    private void saveActiveThreshold(String applianceCode, String measurementType, LocalDateTime utc, LocalDateTime local) {
+        applianceService.getApplianceByCode(applianceCode).ifPresent(appliance -> {
+            if (appliance.isLocked() || appliance.getSetting() == null) {
                 return;
             }
-            LocalDateTime utc = getUtc();
-            LocalDateTime local = getLocalDateTime();
-            if (ac.getState() == ON) {
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
-                        .locationId("AC-THRESHOLD-OFF").utcTime(utc).localTime(local)
-                        .value(ac.getSetting() - ac.getHysteresisOff()).build());
+            if (appliance.getState() == ON) {
+                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType(measurementType)
+                        .locationId(applianceCode + "-THRESHOLD-OFF").utcTime(utc).localTime(local)
+                        .value(appliance.getSetting() - appliance.getHysteresisOff()).build());
             } else {
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType("temp")
-                        .locationId("AC-THRESHOLD-ON").utcTime(utc).localTime(local)
-                        .value(ac.getSetting() + ac.getHysteresisOn()).build());
+                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType(measurementType)
+                        .locationId(applianceCode + "-THRESHOLD-ON").utcTime(utc).localTime(local)
+                        .value(appliance.getSetting() + appliance.getHysteresisOn()).build());
             }
         });
     }
