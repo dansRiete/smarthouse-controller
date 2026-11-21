@@ -104,6 +104,7 @@ smarthouse:
 #    MIAMI: '#0BB0FF'
 
   short-status-null-string: N
+  deh-fan-cron: "-" # active schedule: "0 * * * * *"
 
 metar-locations:
   location-mapping:

@@ -93,7 +93,7 @@ public class ScheduledService {
         applianceService.getAllAppliances().forEach(app -> applianceService.powerControl(app.getCode()));
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "${smarthouse.deh-fan-cron:-}")
     @Transactional
     public void controlFanForDeh() {
         controlFanForDeh(getUtc());
