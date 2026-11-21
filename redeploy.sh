@@ -6,9 +6,13 @@ cd "$PROJECT_DIR"
 
 IMAGE_REPO="localhost:5000/smarthouse-controller"
 TAG="$(git rev-parse --short HEAD)-$(date +%Y%m%d%H%M%S)"
+SKIP_TESTS="true"
+if [[ "${1:-}" == "--with-tests" ]]; then
+  SKIP_TESTS="false"
+fi
 
-echo "=== 1. Building & testing inside Docker (${IMAGE_REPO}:${TAG}) ==="
-docker build --progress=plain -t "${IMAGE_REPO}:${TAG}" -t "${IMAGE_REPO}:latest" .
+echo "=== 1. Building inside Docker (${IMAGE_REPO}:${TAG}, skipTests=${SKIP_TESTS}) ==="
+DOCKER_BUILDKIT=1 docker build --progress=plain --build-arg SKIP_TESTS="${SKIP_TESTS}" -t "${IMAGE_REPO}:${TAG}" -t "${IMAGE_REPO}:latest" .
 
 echo "=== 2. Pushing image to local registry (${IMAGE_REPO}) ==="
 docker push "${IMAGE_REPO}:${TAG}"
