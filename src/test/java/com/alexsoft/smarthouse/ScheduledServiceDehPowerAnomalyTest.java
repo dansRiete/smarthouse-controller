@@ -90,47 +90,80 @@ class ScheduledServiceDehPowerAnomalyTest {
   }
 
   @Test
-  void dehOn_switchedOnNull_noAlertSent() {
-    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, null)));
-
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
-
-    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
-    verifyNoInteractions(indicationRepositoryV3, fcmService);
-  }
-
-  @Test
-  void dehOn_withinStartupGracePeriod_noAlertSent() {
-    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, DAYTIME_UTC.minusMinutes(3))));
-
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
-
-    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
-    verifyNoInteractions(indicationRepositoryV3, fcmService);
-  }
-
-  @Test
   void dehOn_noLastReading_noAlertSent() {
     when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(dehOnLongRunning()));
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.empty());
 
     scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
 
     verify(messageSenderService, never()).sendMessage(anyString(), anyString());
     verifyNoInteractions(fcmService);
   }
 
   @Test
-  void dehOn_lastReadingZeroWattsDuringActiveHours_blinksLedUnderTvAndSendsFcm() {
+  void dehOn_lastReadingZeroWattsDuringActiveHours_waitsFiveMinutesThenBlinksLedUnderTvAndSendsFcm() {
     when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(dehOnLongRunning()));
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.of(powerReading(0.0)));
 
+    // First detection starts the 5-minute delay -> no alert yet
     scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(4).plusSeconds(55));
+    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
+    verifyNoInteractions(fcmService);
 
+    // 5 minutes elapsed -> blink + FCM alert
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
     verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
     verifyNoMoreInteractions(messageSenderService);
+    verify(fcmService).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
+  }
+
+  @Test
+  void dehOn_justSwitchedOnWithFullBucket_alertsAfterFiveMinutes() {
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, DAYTIME_UTC)));
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(0.0)));
+
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(4));
+    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
+    verifyNoInteractions(fcmService);
+
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
+    verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
+    verify(fcmService).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
+  }
+
+  @Test
+  void dehOn_briefPowerDipUnderFiveMinutes_resetsTimerAndSendsNoAlert() {
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(dehOnLongRunning()));
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(0.0)));
+
+    // Starts low-power timer at t=0, stays low at t=4m
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(4));
+
+    // Recovers at t=4m30s -> resets timer
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(102.4)));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(4).plusSeconds(30));
+
+    // Drops again at t=5m -> starts fresh 5-minute timer, so no alert at t=5m or t=9m
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(0.0)));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(9));
+
+    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
+    verifyNoInteractions(fcmService);
+
+    // Alerts once the fresh 5-minute timer completes at t=10m
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(10));
+    verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
     verify(fcmService).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
   }
 
@@ -140,27 +173,34 @@ class ScheduledServiceDehPowerAnomalyTest {
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.of(powerReading(0.0)));
 
-    // First detection -> blink + FCM #1
+    // First detection starts delay -> no alert yet
     scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
-    // 5 seconds later -> blink, no new FCM
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusSeconds(5));
-    // 29 minutes later -> blink, still no new FCM
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(29));
+    // 5 minutes later -> blink + FCM #1
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
+    // 5 seconds after alert -> blink, no new FCM
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5).plusSeconds(5));
+    // 29 minutes after alert -> blink, still no new FCM
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(34));
     verify(fcmService, times(1)).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
 
-    // 30 minutes later -> blink + FCM #2 reminder
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(30));
+    // 30 minutes after alert -> blink + FCM #2 reminder
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(35));
     verify(fcmService, times(2)).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
 
-    // Bucket emptied (power recovers to 102.4W) -> resets cooldown
+    // Bucket emptied (power recovers to 102.4W) -> resets both delay and FCM cooldown
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.of(powerReading(102.4)));
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(31));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(36));
 
-    // Drops back to 0W 2 minutes later -> immediate FCM #3
+    // Drops back to 0W 2 minutes later -> requires another 5-minute delay before FCM #3
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.of(powerReading(0.0)));
-    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(33));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(38));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(42));
+    verify(fcmService, times(2)).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
+
+    // 5 minutes after second drop -> blink + FCM #3
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(43));
 
     verify(fcmService, times(3)).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
     verify(messageSenderService, times(5)).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
@@ -168,16 +208,58 @@ class ScheduledServiceDehPowerAnomalyTest {
 
   @Test
   void dehOn_lastReadingBelowThresholdAt1059PmEst_blinksLedUnderTvAndSendsFcm() {
-    // 22:59 EST = 03:59 UTC next day
+    // 22:54 EST = 03:54 UTC next day -> 22:59 EST = 03:59 UTC next day
+    LocalDateTime startUtc = LocalDateTime.of(2026, 11, 21, 3, 54);
     LocalDateTime lateEveningUtc = LocalDateTime.of(2026, 11, 21, 3, 59);
-    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, lateEveningUtc.minusHours(1))));
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, startUtc.minusHours(1))));
     when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
         .thenReturn(Optional.of(powerReading(49.9)));
 
+    scheduledService.checkDehPowerAnomaly(startUtc);
     scheduledService.checkDehPowerAnomaly(lateEveningUtc);
 
     verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
     verifyNoMoreInteractions(messageSenderService);
+    verify(fcmService).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
+  }
+
+  @Test
+  void dehOn_quietHoursResetsPendingDelayTimer() {
+    // 22:56 EST = 03:56 UTC -> starts timer, then 23:00 EST quiet hours resets it
+    LocalDateTime beforeQuietUtc = LocalDateTime.of(2026, 11, 21, 3, 56);
+    LocalDateTime quietUtc = LocalDateTime.of(2026, 11, 21, 4, 0);
+    LocalDateTime nextMorningUtc = LocalDateTime.of(2026, 11, 21, 14, 0); // 09:00 EST
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, beforeQuietUtc.minusHours(1))));
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(0.0)));
+
+    scheduledService.checkDehPowerAnomaly(beforeQuietUtc);
+    scheduledService.checkDehPowerAnomaly(quietUtc);
+    // At 09:00 EST next morning, timer was reset so no immediate alert
+    scheduledService.checkDehPowerAnomaly(nextMorningUtc);
+
+    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
+    verifyNoInteractions(fcmService);
+  }
+
+  @Test
+  void dehOn_restartedBetweenTicks_resetsPendingDelayTimer() {
+    LocalDateTime initialStart = DAYTIME_UTC.minusHours(1);
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, initialStart)));
+    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("DEHUMIDIFIER", "power"))
+        .thenReturn(Optional.of(powerReading(0.0)));
+
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC);
+
+    // DEH restarted at t+4m (without check seeing OFF) -> timer must restart at t+5m
+    when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(ON, DAYTIME_UTC.plusMinutes(4))));
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(5));
+    verify(messageSenderService, never()).sendMessage(anyString(), anyString());
+    verifyNoInteractions(fcmService);
+
+    // 5 minutes after new detection (t+10m) -> alerts
+    scheduledService.checkDehPowerAnomaly(DAYTIME_UTC.plusMinutes(10));
+    verify(messageSenderService).sendMessage(eq("zigbee2mqtt/LED_UNDER_TV/set"), eq(BLINK_PAYLOAD));
     verify(fcmService).sendAlert(FCM_TITLE, FCM_BODY, "gentle");
   }
 

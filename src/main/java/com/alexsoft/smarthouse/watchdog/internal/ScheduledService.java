@@ -37,6 +37,7 @@ public class ScheduledService {
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
     private static final double DEH_OPERATING_POWER_THRESHOLD_WATTS = 50.0;
     private static final int DEH_FAN_MIN_CONTINUOUS_MINUTES = 20;
+    private static final int DEH_ANOMALY_DELAY_MINUTES = 5;
     private static final int DEH_FCM_REMINDER_MINUTES = 30;
 
     private final ApplianceService applianceService;
@@ -46,6 +47,7 @@ public class ScheduledService {
     private final MessageSenderService messageSenderService;
     private final FcmService fcmService;
 
+    private LocalDateTime dehLowPowerSinceUtc;
     private LocalDateTime lastDehFcmAlertUtc;
 
 
@@ -58,34 +60,47 @@ public class ScheduledService {
     public void checkDehPowerAnomaly(LocalDateTime utc) {
         int localHour = toLocalDateTime(utc).getHour();
         if (localHour < 9 || localHour >= 23) {
+            dehLowPowerSinceUtc = null;
+            lastDehFcmAlertUtc = null;
             return;
         }
-        applianceService.getApplianceByCode("DEH").ifPresent(deh -> {
-            if (deh.getState() != ON) {
-                lastDehFcmAlertUtc = null;
-                return;
-            }
-            if (deh.getSwitchedOn() == null || deh.getSwitchedOn().isAfter(utc.minusMinutes(5))) {
-                return;
-            }
-            String powerLocationId = resolveDehPowerLocationId(deh.getZigbee2MqttTopic());
-            indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(powerLocationId, "power")
-                    .ifPresent(last -> {
-                        if (last.getValue() < DEH_OPERATING_POWER_THRESHOLD_WATTS) {
-                            log.warn("deh.power.anomaly: state=ON but last power reading={}W — alerting", last.getValue());
-                            messageSenderService.sendMessage("zigbee2mqtt/LED_UNDER_TV/set", "{\"effect\": \"blink\"}");
-                            if (lastDehFcmAlertUtc == null || !utc.isBefore(lastDehFcmAlertUtc.plusMinutes(DEH_FCM_REMINDER_MINUTES))) {
-                                fcmService.sendAlert(
-                                        "Dehumidifier Bucket Full",
-                                        "Please empty the bucket",
-                                        "gentle");
-                                lastDehFcmAlertUtc = utc;
-                            }
-                        } else {
-                            lastDehFcmAlertUtc = null;
-                        }
-                    });
-        });
+        Optional<Appliance> dehOpt = applianceService.getApplianceByCode("DEH");
+        if (dehOpt.isEmpty() || dehOpt.get().getState() != ON) {
+            dehLowPowerSinceUtc = null;
+            lastDehFcmAlertUtc = null;
+            return;
+        }
+        Appliance deh = dehOpt.get();
+        if (dehLowPowerSinceUtc != null && deh.getSwitchedOn() != null
+                && dehLowPowerSinceUtc.isBefore(deh.getSwitchedOn())) {
+            dehLowPowerSinceUtc = null;
+            lastDehFcmAlertUtc = null;
+        }
+        String powerLocationId = resolveDehPowerLocationId(deh.getZigbee2MqttTopic());
+        Optional<IndicationV3> lastOpt = indicationRepositoryV3
+                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(powerLocationId, "power");
+        if (lastOpt.isEmpty() || lastOpt.get().getValue() >= DEH_OPERATING_POWER_THRESHOLD_WATTS) {
+            dehLowPowerSinceUtc = null;
+            lastDehFcmAlertUtc = null;
+            return;
+        }
+        if (dehLowPowerSinceUtc == null) {
+            dehLowPowerSinceUtc = utc;
+            return;
+        }
+        if (utc.isBefore(dehLowPowerSinceUtc.plusMinutes(DEH_ANOMALY_DELAY_MINUTES))) {
+            return;
+        }
+        log.warn("deh.power.anomaly: state=ON and power reading={}W for >= {}m — alerting",
+                lastOpt.get().getValue(), DEH_ANOMALY_DELAY_MINUTES);
+        messageSenderService.sendMessage("zigbee2mqtt/LED_UNDER_TV/set", "{\"effect\": \"blink\"}");
+        if (lastDehFcmAlertUtc == null || !utc.isBefore(lastDehFcmAlertUtc.plusMinutes(DEH_FCM_REMINDER_MINUTES))) {
+            fcmService.sendAlert(
+                    "Dehumidifier Bucket Full",
+                    "Please empty the bucket",
+                    "gentle");
+            lastDehFcmAlertUtc = utc;
+        }
     }
 
     @Scheduled(cron = "0/10 * * * * ?")
