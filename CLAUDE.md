@@ -207,9 +207,10 @@ Two thread pools handle scheduled work:
    - **Living Room** (`.*(LIVING-ROOM|935-CORKWOOD-LR).*`): **Red** (`#F2495C`)
    - **Bedroom** (`.*(BEDROOM|935-CORKWOOD-MB|935-CORKWOOD-B).*`): **Blue** (`#3274D9`)
    - **Average** (`.*(AVERAGE|1809-JACKSON-ST-AVG|935-CORKWOOD-AVG).*`): **Green** (`#56A64B`)
-   - **AC & DEH Thresholds** (`.*((AC|DEH)-THRESHOLD-(ON|OFF)).*`): **Grey** (`#8E8E8E`), `spanNulls: 15000` (with `createEmpty: true` in Flux)
+   - **AC & DEH Target** (`.*(TARGET|(AC|DEH)-THRESHOLD).*`): **Grey** (`#8E8E8E`), `lineInterpolation: stepAfter`, `fillOpacity: 0`, `spanNulls: true` (queried separately with `fn: last, createEmpty: false`)
 2. **Location IDs & DB Overrides**:
    - Calculated home averages (Temp, AH, RH) are saved under `location_id = "AVERAGE"` (`ApplianceService.AVERAGE_LOCATION_ID`).
+   - Active AC (`temp`) and DEH (`ah`) switch targets are saved continuously (including when locked) under `location_id = "TARGET"` (`ScheduledService.TARGET_LOCATION_ID`).
    - Incoming MQTT sensor `locationId` remappings are configured in `main.global_settings` under key `location_id_overrides` as a JSON map (e.g., `{"935-CORKWOOD-B": "BEDROOM"}`), cached for 1 minute by `LocationOverrideService` and applied in `MqttIndicationListener`.
 2. **Display Name**: Use `${__field.labels.location_id}` (or `${__field.labels.location_id} (${__field.name})` for multi-query panels) so series legends show clean location names.
 3. **Flux Multi-Sensor Averaging Gotcha (Mobile Zoom)**:

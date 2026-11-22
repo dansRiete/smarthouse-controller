@@ -43,7 +43,7 @@ class ScheduledServiceAcThresholdsTest {
   }
 
   @Test
-  void saveAcThresholds_whenAcIsOff_savesOnlyUpperThresholdOn() {
+  void saveAcThresholds_whenAcIsOff_savesUpperTarget() {
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0, ApplianceState.OFF)));
 
     scheduledService.saveAcThresholds();
@@ -52,13 +52,13 @@ class ScheduledServiceAcThresholdsTest {
     verify(indicationServiceV3, times(1)).save(captor.capture());
 
     IndicationV3 saved = captor.getValue();
-    assertThat(saved.getLocationId(), is("AC-THRESHOLD-ON"));
+    assertThat(saved.getLocationId(), is("TARGET"));
     assertThat(saved.getValue(), is(25.25)); // 24.75 + 0.5
     assertThat(saved.getMeasurementType(), is("temp"));
   }
 
   @Test
-  void saveAcThresholds_whenAcIsOn_savesOnlyLowerThresholdOff() {
+  void saveAcThresholds_whenAcIsOn_savesLowerTarget() {
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(ac(24.75, 0.5, 1.0, ApplianceState.ON)));
 
     scheduledService.saveAcThresholds();
@@ -67,20 +67,26 @@ class ScheduledServiceAcThresholdsTest {
     verify(indicationServiceV3, times(1)).save(captor.capture());
 
     IndicationV3 saved = captor.getValue();
-    assertThat(saved.getLocationId(), is("AC-THRESHOLD-OFF"));
+    assertThat(saved.getLocationId(), is("TARGET"));
     assertThat(saved.getValue(), is(23.75)); // 24.75 - 1.0
     assertThat(saved.getMeasurementType(), is("temp"));
   }
 
   @Test
-  void saveAcThresholds_whenAcIsLocked_savesNothing() {
+  void saveAcThresholds_whenAcIsLocked_stillSavesTarget() {
     Appliance a = ac(24.75, 0.5, 1.0, ApplianceState.OFF);
     a.setLocked(true);
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.of(a));
 
     scheduledService.saveAcThresholds();
 
-    verify(indicationServiceV3, never()).save(any());
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
+
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("TARGET"));
+    assertThat(saved.getValue(), is(25.25));
+    assertThat(saved.getMeasurementType(), is("temp"));
   }
 
   @Test
@@ -106,7 +112,7 @@ class ScheduledServiceAcThresholdsTest {
 
     ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
     verify(indicationServiceV3, times(1)).save(captor.capture());
-    assertThat(captor.getValue().getLocationId(), is("AC-THRESHOLD-ON"));
+    assertThat(captor.getValue().getLocationId(), is("TARGET"));
     assertThat(captor.getValue().getValue(), is(27.0)); // 25.0 + 2.0
   }
 
@@ -121,7 +127,7 @@ class ScheduledServiceAcThresholdsTest {
   }
 
   @Test
-  void saveAcThresholds_whenDehIsOff_savesOnlyUpperThresholdOn() {
+  void saveAcThresholds_whenDehIsOff_savesUpperTarget() {
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
     when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(10.0, 0.5, 0.5, ApplianceState.OFF)));
 
@@ -131,13 +137,13 @@ class ScheduledServiceAcThresholdsTest {
     verify(indicationServiceV3, times(1)).save(captor.capture());
 
     IndicationV3 saved = captor.getValue();
-    assertThat(saved.getLocationId(), is("DEH-THRESHOLD-ON"));
+    assertThat(saved.getLocationId(), is("TARGET"));
     assertThat(saved.getValue(), is(10.5));
     assertThat(saved.getMeasurementType(), is("ah"));
   }
 
   @Test
-  void saveAcThresholds_whenDehIsOn_savesOnlyLowerThresholdOff() {
+  void saveAcThresholds_whenDehIsOn_savesLowerTarget() {
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
     when(applianceService.getApplianceByCode("DEH")).thenReturn(Optional.of(deh(10.0, 0.5, 0.5, ApplianceState.ON)));
 
@@ -147,13 +153,13 @@ class ScheduledServiceAcThresholdsTest {
     verify(indicationServiceV3, times(1)).save(captor.capture());
 
     IndicationV3 saved = captor.getValue();
-    assertThat(saved.getLocationId(), is("DEH-THRESHOLD-OFF"));
+    assertThat(saved.getLocationId(), is("TARGET"));
     assertThat(saved.getValue(), is(9.5));
     assertThat(saved.getMeasurementType(), is("ah"));
   }
 
   @Test
-  void saveAcThresholds_whenDehIsLocked_savesNothing() {
+  void saveAcThresholds_whenDehIsLocked_stillSavesTarget() {
     Appliance d = deh(10.0, 0.5, 0.5, ApplianceState.ON);
     d.setLocked(true);
     when(applianceService.getApplianceByCode("AC")).thenReturn(Optional.empty());
@@ -161,6 +167,12 @@ class ScheduledServiceAcThresholdsTest {
 
     scheduledService.saveAcThresholds();
 
-    verify(indicationServiceV3, never()).save(any());
+    ArgumentCaptor<IndicationV3> captor = ArgumentCaptor.forClass(IndicationV3.class);
+    verify(indicationServiceV3, times(1)).save(captor.capture());
+
+    IndicationV3 saved = captor.getValue();
+    assertThat(saved.getLocationId(), is("TARGET"));
+    assertThat(saved.getValue(), is(9.5));
+    assertThat(saved.getMeasurementType(), is("ah"));
   }
 }

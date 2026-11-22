@@ -35,6 +35,7 @@ public class ScheduledService {
 
     public static final List<String> TREND_DEVICE_IDS = List.of("935-CORKWOOD-MB", "935-CORKWOOD-LR");
     public static final List<String> TREND_MEASURE_TYPES = List.of("ah", "temp");
+    public static final String TARGET_LOCATION_ID = "TARGET";
     private static final double DEH_OPERATING_POWER_THRESHOLD_WATTS = 50.0;
     private static final int DEH_FAN_MIN_CONTINUOUS_MINUTES = 20;
     private static final int DEH_ANOMALY_DELAY_MINUTES = 5;
@@ -177,18 +178,15 @@ public class ScheduledService {
 
     private void saveActiveThreshold(String applianceCode, String measurementType, LocalDateTime utc, LocalDateTime local) {
         applianceService.getApplianceByCode(applianceCode).ifPresent(appliance -> {
-            if (appliance.isLocked() || appliance.getSetting() == null) {
+            if (appliance.getSetting() == null) {
                 return;
             }
-            if (appliance.getState() == ON) {
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType(measurementType)
-                        .locationId(applianceCode + "-THRESHOLD-OFF").utcTime(utc).localTime(local)
-                        .value(appliance.getSetting() - appliance.getHysteresisOff()).build());
-            } else {
-                indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType(measurementType)
-                        .locationId(applianceCode + "-THRESHOLD-ON").utcTime(utc).localTime(local)
-                        .value(appliance.getSetting() + appliance.getHysteresisOn()).build());
-            }
+            double target = appliance.getState() == ON
+                    ? appliance.getSetting() - appliance.getHysteresisOff()
+                    : appliance.getSetting() + appliance.getHysteresisOn();
+            indicationServiceV3.save(IndicationV3.builder().publisherId("i7-4770k").measurementType(measurementType)
+                    .locationId(TARGET_LOCATION_ID).utcTime(utc).localTime(local)
+                    .value(target).build());
         });
     }
 
