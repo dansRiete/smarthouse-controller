@@ -6,9 +6,14 @@
   const PIXEL_SHIFT_MS = 5 * 60 * 1000;
   const WAKE_HOLD_MS = 45 * 1000;
   const REQUESTER_ID = 'wall-panel';
+  const GRAFANA_PORT = 30300;
+  const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
 
   const state = {
     data: null,
+    activeTab: 'controls',
+    chartMode: localStorage.getItem('panel.chartMode') || 'all',
+    chartRange: localStorage.getItem('panel.chartRange') || '6h',
     useFahrenheit: localStorage.getItem('panel.useFahrenheit') !== 'false',
     manualDim: localStorage.getItem('panel.manualDim') === 'true',
     wakeUntil: 0,
@@ -24,6 +29,12 @@
     panelRoot: document.getElementById('panelRoot'),
     clockTime: document.getElementById('clockTime'),
     clockDate: document.getElementById('clockDate'),
+    tabControlsBtn: document.getElementById('tabControlsBtn'),
+    tabChartsBtn: document.getElementById('tabChartsBtn'),
+    controlsView: document.getElementById('controlsView'),
+    chartsView: document.getElementById('chartsView'),
+    chartsGrid: document.getElementById('chartsGrid'),
+    chartsRefreshBtn: document.getElementById('chartsRefreshBtn'),
     outdoorBadge: document.getElementById('outdoorBadge'),
     connDot: document.getElementById('connDot'),
     unitToggleBtn: document.getElementById('unitToggleBtn'),
@@ -361,7 +372,82 @@
       .replace(/"/g, '&quot;');
   }
 
+  function buildGrafanaPanelUrl(panelId, range, cacheBust) {
+    const host = window.location.hostname || '192.168.0.201';
+    const params = new URLSearchParams({
+      orgId: '1',
+      panelId: String(panelId),
+      from: `now-${range}`,
+      to: 'now',
+      refresh: '30s',
+      theme: 'dark',
+      '__feature.dashboardSceneSolo': 'true'
+    });
+    if (cacheBust) {
+      params.set('_t', String(cacheBust));
+    }
+    return `http://${host}:${GRAFANA_PORT}${GRAFANA_DASHBOARD_PATH}?${params.toString()}`;
+  }
+
+  function syncChartButtons() {
+    document.querySelectorAll('[data-chart-mode]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-chart-mode') === state.chartMode);
+    });
+    document.querySelectorAll('[data-chart-range]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-chart-range') === state.chartRange);
+    });
+  }
+
+  function renderCharts(forceReload = false) {
+    syncChartButtons();
+    if (state.activeTab !== 'charts') {
+      el.chartsGrid.innerHTML = '';
+      return;
+    }
+    const panelIds = state.chartMode === 'all' ? [1, 2, 3] : [Number(state.chartMode)];
+    el.chartsGrid.classList.toggle('single', panelIds.length === 1);
+    const bust = forceReload ? Date.now() : 0;
+    el.chartsGrid.innerHTML = panelIds.map(pid => `
+      <div class="chart-frame-wrap">
+        <iframe class="chart-frame" src="${escapeHtml(buildGrafanaPanelUrl(pid, state.chartRange, bust))}" loading="eager" referrerpolicy="no-referrer"></iframe>
+      </div>
+    `).join('');
+  }
+
+  function setActiveTab(tab) {
+    state.activeTab = tab;
+    const isCharts = tab === 'charts';
+    el.tabControlsBtn.classList.toggle('active', !isCharts);
+    el.tabControlsBtn.setAttribute('aria-selected', String(!isCharts));
+    el.tabChartsBtn.classList.toggle('active', isCharts);
+    el.tabChartsBtn.setAttribute('aria-selected', String(isCharts));
+    el.controlsView.classList.toggle('hidden', isCharts);
+    el.chartsView.classList.toggle('hidden', !isCharts);
+    renderCharts();
+  }
+
   // Event Listeners
+  el.tabControlsBtn.addEventListener('click', () => setActiveTab('controls'));
+  el.tabChartsBtn.addEventListener('click', () => setActiveTab('charts'));
+
+  document.querySelectorAll('[data-chart-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.chartMode = btn.getAttribute('data-chart-mode');
+      localStorage.setItem('panel.chartMode', state.chartMode);
+      renderCharts();
+    });
+  });
+
+  document.querySelectorAll('[data-chart-range]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.chartRange = btn.getAttribute('data-chart-range');
+      localStorage.setItem('panel.chartRange', state.chartRange);
+      renderCharts();
+    });
+  });
+
+  el.chartsRefreshBtn.addEventListener('click', () => renderCharts(true));
+
   el.unitToggleBtn.addEventListener('click', () => {
     state.useFahrenheit = !state.useFahrenheit;
     localStorage.setItem('panel.useFahrenheit', String(state.useFahrenheit));

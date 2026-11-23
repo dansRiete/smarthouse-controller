@@ -19,6 +19,10 @@
         <span id="clockTime" class="clock-time">--:--</span>
         <span id="clockDate" class="clock-date">---</span>
       </div>
+      <nav class="nav-tabs" role="tablist" aria-label="Panel views">
+        <button id="tabControlsBtn" class="nav-tab active" type="button" role="tab" aria-selected="true">Controls</button>
+        <button id="tabChartsBtn" class="nav-tab" type="button" role="tab" aria-selected="false">Charts</button>
+      </nav>
       <div class="topbar-right">
         <span id="outdoorBadge" class="chip chip-muted hidden">OUT --°</span>
         <span id="connDot" class="conn-dot conn-pending" title="Connection status"></span>
@@ -29,7 +33,7 @@
     </header>
 
     <!-- Main Content Grid -->
-    <main class="main-grid">
+    <main id="controlsView" class="main-grid">
       <!-- Left: AC Thermostat Hero -->
       <section id="acCard" class="card card-ac">
         <div class="card-header">
@@ -113,6 +117,28 @@
         </section>
       </div>
     </main>
+
+    <!-- Grafana Charts Tab -->
+    <section id="chartsView" class="charts-view hidden" aria-label="Grafana charts">
+      <div class="charts-toolbar">
+        <div class="seg-group" role="group" aria-label="Chart selector">
+          <button class="seg-btn active" data-chart-mode="all" type="button">All</button>
+          <button class="seg-btn" data-chart-mode="1" type="button">Temp</button>
+          <button class="seg-btn" data-chart-mode="2" type="button">AH</button>
+          <button class="seg-btn" data-chart-mode="3" type="button">CO₂</button>
+        </div>
+        <div class="charts-toolbar-right">
+          <div class="seg-group" role="group" aria-label="Time range">
+            <button class="seg-btn" data-chart-range="1h" type="button">1h</button>
+            <button class="seg-btn" data-chart-range="3h" type="button">3h</button>
+            <button class="seg-btn active" data-chart-range="6h" type="button">6h</button>
+            <button class="seg-btn" data-chart-range="24h" type="button">24h</button>
+          </div>
+          <button id="chartsRefreshBtn" class="icon-btn" type="button" title="Reload charts">↻</button>
+        </div>
+      </div>
+      <div id="chartsGrid" class="charts-grid"></div>
+    </section>
   </div>
 
   <!-- Quick Lock Modal -->

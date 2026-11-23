@@ -131,6 +131,124 @@ html, body {
   border-color: rgba(56, 189, 248, 0.45);
 }
 
+/* Top Bar Tabs */
+.nav-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.nav-tab {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-radius: 9px;
+  height: 30px;
+  padding: 0 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nav-tab.active {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.nav-tab:active {
+  transform: scale(0.96);
+}
+
+/* Charts View */
+.charts-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.charts-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.charts-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seg-group {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-radius: 8px;
+  height: 30px;
+  padding: 0 11px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg-btn.active {
+  background: var(--surface-elev);
+  color: var(--text);
+}
+
+.seg-btn:active {
+  transform: scale(0.96);
+}
+
+.charts-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.charts-grid.single {
+  grid-template-rows: 1fr;
+}
+
+.chart-frame-wrap {
+  background: #111217;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chart-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+@media (max-width: 520px) {
+  .clock-date { display: none; }
+  .nav-tab { padding: 0 10px; font-size: 0.8rem; }
+}
+
 /* Main Grid — Landscape Default (Pixel 6 Pro horizontal) */
 .main-grid {
   flex: 1;

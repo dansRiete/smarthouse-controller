@@ -181,7 +181,7 @@ Two thread pools handle scheduled work:
 ## Monitoring
 
 - **Prometheus**: `http://192.168.0.201:30090` (NodePort)
-- **Grafana**: `http://192.168.0.201:30300` (NodePort), user `admin`
+- **Grafana**: `http://192.168.0.201:30300` (NodePort), user `admin` (embedding + read-only LAN anonymous `Viewer` enabled via `GF_SECURITY_ALLOW_EMBEDDING=true`, `GF_AUTH_ANONYMOUS_ENABLED=true`, `GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer` for the `/smarthouse/panel` wall kiosk Charts tab)
   - Password stored in k8s secret: `kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d`
 - **InfluxDB 2.x**: `http://192.168.0.201:8086` (in-cluster: `http://smarthouse-influxdb.smarthouse.svc.cluster.local:8086`)
   - Organization: `Home`, Bucket: `smarthouse-bucket`
