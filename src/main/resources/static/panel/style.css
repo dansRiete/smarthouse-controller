@@ -1,0 +1,630 @@
+:root {
+  --bg: #000000;
+  --surface: #0d0f13;
+  --surface-elev: #151922;
+  --border: #1e2430;
+  --text: #f3f5f8;
+  --text-dim: #8a94a6;
+  --text-muted: #5a6375;
+
+  --blue: #38bdf8;
+  --blue-bg: rgba(56, 189, 248, 0.14);
+  --blue-glow: rgba(56, 189, 248, 0.22);
+
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.14);
+
+  --amber: #f59e0b;
+  --amber-bg: rgba(245, 158, 11, 0.16);
+
+  --red: #ef4444;
+  --red-bg: rgba(239, 68, 68, 0.18);
+
+  --radius: 20px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.panel-root {
+  width: 100%;
+  height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 1.2s ease;
+}
+
+/* Top Bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 4px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.clock-time {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.clock-date {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.conn-ok { background: var(--green); box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+.conn-err { background: var(--red); box-shadow: 0 0 8px rgba(239, 68, 68, 0.7); }
+.conn-pending { background: var(--amber); }
+
+.icon-btn {
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 38px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+  background: var(--surface-elev);
+}
+
+.icon-btn.active {
+  color: var(--blue);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+/* Main Grid — Landscape Default (Pixel 6 Pro horizontal) */
+.main-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 12px;
+}
+
+.right-col {
+  display: grid;
+  grid-template-rows: 1fr 1.15fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* Portrait layout (tall phones) */
+@media (max-aspect-ratio: 11/10) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1.25fr 1fr;
+  }
+  .right-col {
+    grid-template-rows: auto 1fr;
+  }
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-ac.state-on {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: inset 0 0 60px var(--blue-glow);
+}
+
+.card-deh.state-on {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.card-deh.alert-active {
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: inset 0 0 40px rgba(239, 68, 68, 0.18);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.status-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.status-idle { background: var(--surface-elev); color: var(--text-dim); }
+.status-cooling { background: var(--blue-bg); color: var(--blue); }
+.status-good { background: var(--green-bg); color: var(--green); }
+.status-fair { background: var(--amber-bg); color: var(--amber); }
+.status-poor { background: var(--red-bg); color: var(--red); }
+
+.pill-btn {
+  background: var(--surface-elev);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill-btn.locked {
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.45);
+  background: var(--amber-bg);
+}
+
+.pill-btn:active {
+  transform: scale(0.95);
+}
+
+/* AC Thermostat Hero */
+.thermostat-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.temp-hero-row {
+  display: flex;
+  align-items: flex-start;
+  line-height: 1;
+}
+
+.temp-hero {
+  font-size: clamp(3.6rem, 11vh, 5.8rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.temp-hero-unit {
+  font-size: clamp(1.3rem, 3.2vh, 2rem);
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-top: 0.45rem;
+  margin-left: 3px;
+}
+
+.target-strip {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.96rem;
+  color: var(--text-dim);
+}
+
+.target-strip strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.target-sep {
+  color: var(--text-muted);
+}
+
+/* Touch Steppers & Power Buttons */
+.stepper-row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  gap: 10px;
+}
+
+.step-btn {
+  height: clamp(50px, 11vh, 66px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-elev);
+  color: var(--text);
+  font-size: 2rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-btn:active {
+  transform: scale(0.95);
+  background: #202736;
+}
+
+.step-btn-sm {
+  height: clamp(42px, 8.5vh, 52px);
+  font-size: 1.6rem;
+  border-radius: 13px;
+}
+
+.power-btn {
+  height: clamp(50px, 11vh, 66px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-elev);
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.power-btn:active {
+  transform: scale(0.96);
+}
+
+.power-btn.is-on-ac {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.power-btn.is-on-deh {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.power-btn.is-on-fan {
+  background: rgba(167, 139, 250, 0.16);
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, 0.5);
+}
+
+.power-btn-sm {
+  height: clamp(42px, 8.5vh, 52px);
+  font-size: 0.82rem;
+  border-radius: 13px;
+}
+
+/* Room Temperature Mini Chips */
+.room-mini-row {
+  display: flex;
+  gap: 8px;
+}
+
+.room-mini {
+  flex: 1;
+  background: #080a0d;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.84rem;
+}
+
+.room-mini-name {
+  color: var(--text-dim);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-mini-val {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.room-mini.stale {
+  opacity: 0.5;
+}
+
+/* CO2 Air Quality Card */
+.co2-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+  margin-top: 6px;
+}
+
+.co2-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.co2-row.stale {
+  opacity: 0.45;
+}
+
+.co2-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.co2-room-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.co2-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.co2-value {
+  font-size: clamp(1.5rem, 4.2vh, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.co2-unit {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.co2-bar-track {
+  width: 100%;
+  height: 7px;
+  background: var(--surface-elev);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.co2-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease, background-color 0.4s ease;
+}
+
+.co2-good { color: var(--green); }
+.co2-fair { color: var(--amber); }
+.co2-poor { color: var(--red); }
+
+.co2-bar-good { background: var(--green); }
+.co2-bar-fair { background: var(--amber); }
+.co2-bar-poor { background: var(--red); }
+
+.co2-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* DEH / Humidity Card */
+.alert-banner {
+  background: var(--red-bg);
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, 0.65);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.deh-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+.deh-primary {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.metric-big {
+  font-size: clamp(2rem, 6vh, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.metric-unit {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.deh-secondary {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-sub {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+
+.metric-sub strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.deh-controls {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr 0.8fr 1.1fr;
+  gap: 8px;
+}
+
+/* Lock Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.modal-sheet {
+  background: #12151d;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-btn {
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-elev);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-btn:active {
+  transform: scale(0.97);
+}
+
+.modal-btn-accent {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.modal-btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+/* Night Dim Overlay */
+.dim-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 40;
+  cursor: pointer;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e2430;
+  color: var(--text);
+  border: 1px solid #334155;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  z-index: 60;
+}

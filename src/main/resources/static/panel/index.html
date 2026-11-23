@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>SmartHouse Panel</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="panelRoot" class="panel-root">
+    <!-- Top Status Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span id="clockTime" class="clock-time">--:--</span>
+        <span id="clockDate" class="clock-date">---</span>
+      </div>
+      <div class="topbar-right">
+        <span id="outdoorBadge" class="chip chip-muted hidden">OUT --°</span>
+        <span id="connDot" class="conn-dot conn-pending" title="Connection status"></span>
+        <button id="unitToggleBtn" class="icon-btn" type="button" title="Toggle °F / °C">°F</button>
+        <button id="dimToggleBtn" class="icon-btn" type="button" title="Night dim mode">☾</button>
+        <button id="fsBtn" class="icon-btn" type="button" title="Fullscreen">⛶</button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-grid">
+      <!-- Left: AC Thermostat Hero -->
+      <section id="acCard" class="card card-ac">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-eyebrow">CLIMATE · AC</span>
+            <span id="acStatusPill" class="status-pill status-idle">IDLE</span>
+          </div>
+          <button id="acLockBtn" class="pill-btn" type="button">
+            <span id="acLockLabel">Unlocked</span>
+          </button>
+        </div>
+
+        <div class="thermostat-center">
+          <div class="temp-hero-row">
+            <span id="acActualValue" class="temp-hero">--.-</span>
+            <span id="acActualUnit" class="temp-hero-unit">°F</span>
+          </div>
+          <div class="target-strip">
+            <span class="target-item">SET <strong id="acSetValue">--</strong></span>
+            <span class="target-sep">·</span>
+            <span class="target-item"><span id="acTargetDir">NEXT</span> <strong id="acTargetValue">--</strong></span>
+          </div>
+        </div>
+
+        <div class="stepper-row">
+          <button id="acDownBtn" class="step-btn" type="button" aria-label="Decrease AC temperature">−</button>
+          <button id="acPowerBtn" class="power-btn" type="button">AC OFF</button>
+          <button id="acUpBtn" class="step-btn" type="button" aria-label="Increase AC temperature">+</button>
+        </div>
+
+        <div id="roomTempRow" class="room-mini-row"></div>
+      </section>
+
+      <!-- Right Column: CO2 + Humidity/DEH -->
+      <div class="right-col">
+        <!-- CO2 Air Quality Card -->
+        <section id="co2Card" class="card card-co2">
+          <div class="card-header">
+            <span class="card-eyebrow">AIR QUALITY · CO₂</span>
+            <span id="co2QualityPill" class="status-pill status-good">--</span>
+          </div>
+          <div id="co2List" class="co2-list">
+            <div class="co2-empty">Waiting for CO₂ sensors...</div>
+          </div>
+        </section>
+
+        <!-- Humidity / DEH + FAN Card -->
+        <section id="dehCard" class="card card-deh">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="card-eyebrow">HUMIDITY · DEH</span>
+              <span id="dehStatusPill" class="status-pill status-idle">OFF</span>
+            </div>
+            <button id="dehLockBtn" class="pill-btn" type="button">
+              <span id="dehLockLabel">Unlocked</span>
+            </button>
+          </div>
+
+          <div id="dehBucketAlert" class="alert-banner hidden">
+            DEHUMIDIFIER BUCKET FULL — PLEASE EMPTY
+          </div>
+
+          <div class="deh-metrics">
+            <div class="deh-primary">
+              <span id="dehActualAh" class="metric-big">--.-</span>
+              <span class="metric-unit">g/m³</span>
+            </div>
+            <div class="deh-secondary">
+              <div class="metric-sub">RH <strong id="dehActualRh">--%</strong></div>
+              <div class="metric-sub">SET <strong id="dehSetValue">--</strong> · <span id="dehTargetDir">NEXT</span> <strong id="dehTargetValue">--</strong></div>
+              <div id="dehPowerSub" class="metric-sub hidden">PWR <strong id="dehPowerValue">--W</strong></div>
+            </div>
+          </div>
+
+          <div class="deh-controls">
+            <button id="dehDownBtn" class="step-btn step-btn-sm" type="button" aria-label="Decrease DEH target">−</button>
+            <button id="dehPowerBtn" class="power-btn power-btn-sm" type="button">DEH OFF</button>
+            <button id="dehUpBtn" class="step-btn step-btn-sm" type="button" aria-label="Increase DEH target">+</button>
+            <button id="fanPowerBtn" class="power-btn power-btn-sm power-btn-fan" type="button">FAN OFF</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Quick Lock Modal -->
+  <div id="lockModal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-sheet">
+      <div class="modal-title" id="lockModalTitle">Lock AC</div>
+      <div class="modal-grid">
+        <button class="modal-btn" data-lock-mins="30" type="button">30 min</button>
+        <button class="modal-btn" data-lock-mins="60" type="button">1 hour</button>
+        <button class="modal-btn" data-lock-mins="120" type="button">2 hours</button>
+        <button class="modal-btn" data-lock-mins="forever" type="button">Indefinite</button>
+      </div>
+      <div class="modal-actions">
+        <button id="lockUnlockBtn" class="modal-btn modal-btn-accent hidden" type="button">Unlock Now</button>
+        <button id="lockCancelBtn" class="modal-btn modal-btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Night Dim Overlay -->
+  <div id="dimOverlay" class="dim-overlay hidden" title="Tap to wake"></div>
+
+  <!-- Toast feedback -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
