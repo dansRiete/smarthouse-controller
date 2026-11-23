@@ -249,6 +249,29 @@ html, body {
   .nav-tab { padding: 0 10px; font-size: 0.8rem; }
 }
 
+/* Compact Landscape Phone Viewport (e.g. Pixel / Galaxy horizontal) */
+@media (max-height: 480px) {
+  .panel-root {
+    padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    gap: 6px;
+  }
+  .topbar { min-height: 32px; }
+  .main-grid, .right-col { gap: 8px; }
+  .card { padding: 10px 13px; border-radius: 16px; }
+  .temp-hero { font-size: clamp(2.8rem, 15vh, 4.2rem); }
+  .target-strip { margin-top: 3px; font-size: 0.88rem; }
+  .step-btn, .power-btn { height: clamp(40px, 12vh, 52px); border-radius: 13px; }
+  .step-btn-sm, .power-btn-sm { height: clamp(34px, 10vh, 44px); border-radius: 11px; font-size: 0.78rem; }
+  .step-btn-sm { font-size: 1.4rem; }
+  .room-mini { padding: 5px 9px; font-size: 0.8rem; }
+  .co2-list { margin-top: 6px; gap: 10px; }
+  .co2-value { font-size: clamp(1.3rem, 5.5vh, 1.8rem); }
+  .co2-room-name { font-size: 0.8rem; }
+  .metric-big { font-size: clamp(1.6rem, 7vh, 2.3rem); }
+  .metric-sub { font-size: 0.76rem; }
+  .deh-metrics { margin: 2px 0; }
+}
+
 /* Main Grid — Landscape Default (Pixel 6 Pro horizontal) */
 .main-grid {
   flex: 1;
@@ -260,8 +283,8 @@ html, body {
 
 .right-col {
   display: grid;
-  grid-template-rows: 1fr 1.15fr;
-  gap: 12px;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
   min-height: 0;
 }
 
@@ -518,18 +541,19 @@ html, body {
 
 /* CO2 Air Quality Card */
 .co2-list {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  align-items: center;
+  gap: 14px;
   flex: 1;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .co2-row {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
 }
 
 .co2-row.stale {
