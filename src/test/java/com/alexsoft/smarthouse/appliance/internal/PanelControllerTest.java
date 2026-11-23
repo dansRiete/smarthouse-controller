@@ -3,7 +3,7 @@ package com.alexsoft.smarthouse.appliance.internal;
 import com.alexsoft.smarthouse.appliance.Appliance;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
 import com.alexsoft.smarthouse.appliance.ApplianceState;
-import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
+import com.alexsoft.smarthouse.environment.IndicationServiceV3;
 import com.alexsoft.smarthouse.environment.IndicationV3;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,6 +21,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,7 +30,7 @@ import static org.mockito.Mockito.when;
 class PanelControllerTest {
 
   @Mock ApplianceService applianceService;
-  @Mock IndicationRepositoryV3 indicationRepositoryV3;
+  @Mock IndicationServiceV3 indicationServiceV3;
 
   @InjectMocks PanelController panelController;
 
@@ -71,17 +73,17 @@ class PanelControllerTest {
 
     when(applianceService.getAllAppliances()).thenReturn(List.of(ac, deh));
 
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("LIVING-ROOM", "temp"))
+    when(indicationServiceV3.findLatestRecent(eq("LIVING-ROOM"), eq("temp"), any()))
         .thenReturn(Optional.of(reading("LIVING-ROOM", "temp", 24.6, NOW.minusSeconds(10))));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("LIVING-ROOM", "co2"))
+    when(indicationServiceV3.findLatestRecent(eq("LIVING-ROOM"), eq("co2"), any()))
         .thenReturn(Optional.of(reading("LIVING-ROOM", "co2", 950.0, NOW.minusSeconds(10))));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("BEDROOM", "temp"))
+    when(indicationServiceV3.findLatestRecent(eq("BEDROOM"), eq("temp"), any()))
         .thenReturn(Optional.of(reading("BEDROOM", "temp", 24.4, NOW.minusMinutes(20))));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("BEDROOM", "co2"))
+    when(indicationServiceV3.findLatestRecent(eq("BEDROOM"), eq("co2"), any()))
         .thenReturn(Optional.of(reading("BEDROOM", "co2", 1120.0, NOW.minusMinutes(20))));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("FORT-LAUDERDALE", "temp"))
+    when(indicationServiceV3.findLatestRecent(eq("FORT-LAUDERDALE"), eq("temp"), any()))
         .thenReturn(Optional.of(reading("FORT-LAUDERDALE", "temp", 27.0, NOW.minusMinutes(15))));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("lr-sp-dehumidifier", "power"))
+    when(indicationServiceV3.findLatestRecent(eq("lr-sp-dehumidifier"), eq("power"), any()))
         .thenReturn(Optional.of(reading("lr-sp-dehumidifier", "power", 410.0, NOW.minusSeconds(30))));
 
     PanelController.PanelStateResponse state = panelController.buildPanelState(NOW);
@@ -124,7 +126,7 @@ class PanelControllerTest {
     deh.setSwitchedOn(NOW.minusMinutes(10));
 
     when(applianceService.getAllAppliances()).thenReturn(List.of(deh));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("lr-sp-dehumidifier", "power"))
+    when(indicationServiceV3.findLatestRecent(eq("lr-sp-dehumidifier"), eq("power"), any()))
         .thenReturn(Optional.of(reading("lr-sp-dehumidifier", "power", 1.2, NOW.minusSeconds(5))));
 
     PanelController.PanelStateResponse state = panelController.buildPanelState(NOW);
@@ -145,7 +147,7 @@ class PanelControllerTest {
     deh.setSwitchedOn(NOW.minusMinutes(2));
 
     when(applianceService.getAllAppliances()).thenReturn(List.of(deh));
-    when(indicationRepositoryV3.findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc("lr-sp-dehumidifier", "power"))
+    when(indicationServiceV3.findLatestRecent(eq("lr-sp-dehumidifier"), eq("power"), any()))
         .thenReturn(Optional.of(reading("lr-sp-dehumidifier", "power", 1.2, NOW.minusSeconds(5))));
 
     PanelController.PanelStateResponse state = panelController.buildPanelState(NOW);

@@ -3,7 +3,7 @@ package com.alexsoft.smarthouse.appliance.internal;
 import com.alexsoft.smarthouse.appliance.Appliance;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
 import com.alexsoft.smarthouse.appliance.ApplianceState;
-import com.alexsoft.smarthouse.environment.IndicationRepositoryV3;
+import com.alexsoft.smarthouse.environment.IndicationServiceV3;
 import com.alexsoft.smarthouse.environment.IndicationV3;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +38,7 @@ public class PanelController {
     private static final long DEH_ANOMALY_DELAY_MINUTES = 5;
 
     private final ApplianceService applianceService;
-    private final IndicationRepositoryV3 indicationRepositoryV3;
+    private final IndicationServiceV3 indicationServiceV3;
 
     @GetMapping("/state")
     public ResponseEntity<PanelStateResponse> getPanelState() {
@@ -129,14 +129,11 @@ public class PanelController {
     }
 
     private RoomReadingView buildRoomReading(String locationId, LocalDateTime utc, long staleMinutes) {
-        Optional<IndicationV3> temp = indicationRepositoryV3
-                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(locationId, "temp");
-        Optional<IndicationV3> rh = indicationRepositoryV3
-                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(locationId, "rh");
-        Optional<IndicationV3> ah = indicationRepositoryV3
-                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(locationId, "ah");
-        Optional<IndicationV3> co2 = indicationRepositoryV3
-                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(locationId, "co2");
+        LocalDateTime lookback = utc.minusMinutes(staleMinutes * 2);
+        Optional<IndicationV3> temp = indicationServiceV3.findLatestRecent(locationId, "temp", lookback);
+        Optional<IndicationV3> rh = indicationServiceV3.findLatestRecent(locationId, "rh", lookback);
+        Optional<IndicationV3> ah = indicationServiceV3.findLatestRecent(locationId, "ah", lookback);
+        Optional<IndicationV3> co2 = indicationServiceV3.findLatestRecent(locationId, "co2", lookback);
 
         LocalDateTime latestUpdate = latestTimestamp(temp, rh, ah, co2);
         boolean stale = latestUpdate == null || latestUpdate.isBefore(utc.minusMinutes(staleMinutes));
@@ -160,11 +157,9 @@ public class PanelController {
     private OutdoorReadingView buildOutdoorReading(LocalDateTime utc) {
         LocalDateTime cutoff = utc.minusMinutes(OUTDOOR_STALE_MINUTES);
         for (String loc : OUTDOOR_LOCATIONS) {
-            Optional<IndicationV3> temp = indicationRepositoryV3
-                    .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(loc, "temp");
+            Optional<IndicationV3> temp = indicationServiceV3.findLatestRecent(loc, "temp", cutoff);
             if (temp.isPresent() && temp.get().getUtcTime() != null && !temp.get().getUtcTime().isBefore(cutoff)) {
-                Optional<IndicationV3> rh = indicationRepositoryV3
-                        .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(loc, "rh");
+                Optional<IndicationV3> rh = indicationServiceV3.findLatestRecent(loc, "rh", cutoff);
                 return new OutdoorReadingView(
                         loc,
                         temp.get().getValue(),
@@ -181,10 +176,10 @@ public class PanelController {
             return null;
         }
         String locationId = resolveDehPowerLocationId(deh.getZigbee2MqttTopic());
-        Optional<IndicationV3> power = indicationRepositoryV3
-                .findTopByLocationIdAndMeasurementTypeOrderByUtcTimeDesc(locationId, "power");
+        LocalDateTime cutoff = utc.minusMinutes(ROOM_STALE_MINUTES);
+        Optional<IndicationV3> power = indicationServiceV3.findLatestRecent(locationId, "power", cutoff);
         if (power.isEmpty() || power.get().getUtcTime() == null
-                || power.get().getUtcTime().isBefore(utc.minusMinutes(ROOM_STALE_MINUTES))) {
+                || power.get().getUtcTime().isBefore(cutoff)) {
             return null;
         }
         return power.get().getValue();
