@@ -6,6 +6,8 @@
   const PIXEL_SHIFT_MS = 5 * 60 * 1000;
   const REQUESTER_ID = 'wall-panel';
   const GRAFANA_PORT = 30300;
+  const NODE_RED_PORT = 31880;
+  const WAKE_THROTTLE_MS = 10000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
 
   const state = {
@@ -19,6 +21,7 @@
     lockTargetCode: null,
     pendingAcSettingC: null,
     acDebounceTimer: null,
+    lastWakeSentAt: 0,
     busy: false
   };
 
@@ -412,7 +415,21 @@
     renderCharts();
   }
 
+  function notifyTouchWake() {
+    const now = Date.now();
+    if (now - state.lastWakeSentAt < WAKE_THROTTLE_MS) {
+      return;
+    }
+    state.lastWakeSentAt = now;
+    const host = window.location.hostname || '192.168.0.201';
+    fetch(`http://${host}:${NODE_RED_PORT}/api/panel/wake`, {
+      method: 'POST',
+      mode: 'no-cors'
+    }).catch(() => {});
+  }
+
   // Event Listeners
+  document.addEventListener('pointerdown', notifyTouchWake, { passive: true });
   el.tabControlsBtn.addEventListener('click', () => setActiveTab('controls'));
   el.tabChartsBtn.addEventListener('click', () => setActiveTab('charts'));
 
