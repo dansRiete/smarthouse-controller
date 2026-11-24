@@ -4,7 +4,6 @@
   const POLL_MS = 5000;
   const MAX_BACKOFF_MS = 30000;
   const PIXEL_SHIFT_MS = 5 * 60 * 1000;
-  const WAKE_HOLD_MS = 45 * 1000;
   const REQUESTER_ID = 'wall-panel';
   const GRAFANA_PORT = 30300;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
@@ -15,8 +14,6 @@
     chartMode: localStorage.getItem('panel.chartMode') || 'all',
     chartRange: localStorage.getItem('panel.chartRange') || '6h',
     useFahrenheit: localStorage.getItem('panel.useFahrenheit') !== 'false',
-    manualDim: localStorage.getItem('panel.manualDim') === 'true',
-    wakeUntil: 0,
     backoffMs: POLL_MS,
     pollTimer: null,
     lockTargetCode: null,
@@ -38,7 +35,6 @@
     outdoorBadge: document.getElementById('outdoorBadge'),
     connDot: document.getElementById('connDot'),
     unitToggleBtn: document.getElementById('unitToggleBtn'),
-    dimToggleBtn: document.getElementById('dimToggleBtn'),
     fsBtn: document.getElementById('fsBtn'),
 
     acCard: document.getElementById('acCard'),
@@ -80,7 +76,6 @@
     lockUnlockBtn: document.getElementById('lockUnlockBtn'),
     lockCancelBtn: document.getElementById('lockCancelBtn'),
 
-    dimOverlay: document.getElementById('dimOverlay'),
     toast: document.getElementById('toast')
   };
 
@@ -122,15 +117,6 @@
     const now = new Date();
     el.clockTime.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     el.clockDate.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    updateNightDim(now);
-  }
-
-  function updateNightDim(now = new Date()) {
-    const hour = now.getHours();
-    const isNightHours = hour >= 23 || hour < 7;
-    const shouldDim = (state.manualDim || isNightHours) && Date.now() >= state.wakeUntil;
-    el.dimOverlay.classList.toggle('hidden', !shouldDim);
-    el.dimToggleBtn.classList.toggle('active', state.manualDim);
   }
 
   function applyPixelShift() {
@@ -452,18 +438,6 @@
     state.useFahrenheit = !state.useFahrenheit;
     localStorage.setItem('panel.useFahrenheit', String(state.useFahrenheit));
     render();
-  });
-
-  el.dimToggleBtn.addEventListener('click', () => {
-    state.manualDim = !state.manualDim;
-    localStorage.setItem('panel.manualDim', String(state.manualDim));
-    state.wakeUntil = 0;
-    updateNightDim();
-  });
-
-  el.dimOverlay.addEventListener('click', () => {
-    state.wakeUntil = Date.now() + WAKE_HOLD_MS;
-    updateNightDim();
   });
 
   el.fsBtn.addEventListener('click', () => {

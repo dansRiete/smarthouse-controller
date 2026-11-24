@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>SmartHouse Panel</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div id="panelRoot" class="panel-root">
@@ -27,7 +27,6 @@
         <span id="outdoorBadge" class="chip chip-muted hidden">OUT --°</span>
         <span id="connDot" class="conn-dot conn-pending" title="Connection status"></span>
         <button id="unitToggleBtn" class="icon-btn" type="button" title="Toggle °F / °C">°F</button>
-        <button id="dimToggleBtn" class="icon-btn" type="button" title="Night dim mode">☾</button>
         <button id="fsBtn" class="icon-btn" type="button" title="Fullscreen">⛶</button>
       </div>
     </header>
@@ -158,12 +157,9 @@
     </div>
   </div>
 
-  <!-- Night Dim Overlay -->
-  <div id="dimOverlay" class="dim-overlay hidden" title="Tap to wake"></div>
-
   <!-- Toast feedback -->
   <div id="toast" class="toast hidden"></div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
