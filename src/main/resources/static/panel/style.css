@@ -760,9 +760,9 @@ html, body {
 .ss-widget {
   position: absolute;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: clamp(14px, 3vw, 28px);
+  gap: clamp(8px, 1.8vw, 18px);
   padding: clamp(14px, 3vh, 26px) clamp(20px, 4vw, 36px);
   transition: opacity 0.45s ease;
 }
@@ -780,8 +780,9 @@ html, body {
 }
 
 .ss-air-dot {
-  width: clamp(4.6rem, 28vh, 9.2rem);
-  height: clamp(4.6rem, 28vh, 9.2rem);
+  width: clamp(2.3rem, 14vh, 4.6rem);
+  height: clamp(2.3rem, 14vh, 4.6rem);
+  margin-top: clamp(0.45rem, 2.5vh, 0.95rem);
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--text-muted);
