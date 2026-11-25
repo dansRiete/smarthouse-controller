@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>SmartHouse Panel</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div id="panelRoot" class="panel-root">
@@ -157,9 +157,17 @@
     </div>
   </div>
 
+  <!-- OLED Ambient Screensaver -->
+  <div id="screensaverOverlay" class="screensaver hidden" aria-label="Tap to wake">
+    <div id="ssWidget" class="ss-widget">
+      <span id="ssTemp" class="ss-temp">--.-°</span>
+      <span id="ssAirDot" class="ss-air-dot" aria-label="Air quality"></span>
+    </div>
+  </div>
+
   <!-- Toast feedback -->
   <div id="toast" class="toast hidden"></div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

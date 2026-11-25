@@ -746,6 +746,63 @@ html, body {
   color: var(--text-dim);
 }
 
+/* OLED Ambient Screensaver */
+.screensaver {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  z-index: 45;
+  overflow: hidden;
+  cursor: pointer;
+  transition: filter 0.8s ease;
+}
+
+.ss-widget {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 3vw, 28px);
+  padding: clamp(14px, 3vh, 26px) clamp(20px, 4vw, 36px);
+  transition: opacity 0.45s ease;
+}
+
+.ss-widget.fading {
+  opacity: 0;
+}
+
+.ss-temp {
+  font-size: clamp(4.2rem, 26vh, 8.5rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.ss-air-dot {
+  width: clamp(28px, 9vh, 52px);
+  height: clamp(28px, 9vh, 52px);
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.ss-air-dot.air-good {
+  background: var(--green);
+  box-shadow: 0 0 26px rgba(34, 197, 94, 0.55);
+}
+
+.ss-air-dot.air-fair {
+  background: var(--amber);
+  box-shadow: 0 0 26px rgba(245, 158, 11, 0.55);
+}
+
+.ss-air-dot.air-poor {
+  background: var(--red);
+  box-shadow: 0 0 28px rgba(239, 68, 68, 0.65);
+}
+
 /* Toast */
 .toast {
   position: fixed;

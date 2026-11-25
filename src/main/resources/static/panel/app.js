@@ -10,6 +10,7 @@
   const BRIGHTNESS_POLL_MS = 1500;
   const WAKE_THROTTLE_MS = 10000;
   const CELSIUS_REVERT_MS = 10000;
+  const SCREENSAVER_MOVE_MS = 60 * 1000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
 
   const state = {
@@ -28,6 +29,9 @@
     uiBrightness: 0.72,
     activeUiBrightness: 0.72,
     localWakeUntil: 0,
+    screensaverActive: false,
+    screensaverMoveTimer: null,
+    ssPos: { x: null, y: null },
     busy: false
   };
 
@@ -85,6 +89,10 @@
     lockUnlockBtn: document.getElementById('lockUnlockBtn'),
     lockCancelBtn: document.getElementById('lockCancelBtn'),
 
+    screensaverOverlay: document.getElementById('screensaverOverlay'),
+    ssWidget: document.getElementById('ssWidget'),
+    ssTemp: document.getElementById('ssTemp'),
+    ssAirDot: document.getElementById('ssAirDot'),
     toast: document.getElementById('toast')
   };
 
@@ -268,6 +276,7 @@
 
     // CO2 card
     renderCo2(rooms);
+    renderScreensaverData();
 
     // DEH + FAN card
     const deh = d.appliances && d.appliances.DEH;
@@ -446,7 +455,91 @@
   function applyUiBrightness(level) {
     const clamped = Math.max(0.05, Math.min(1.0, Number(level) || 0.72));
     state.uiBrightness = clamped;
-    el.panelRoot.style.filter = `brightness(${clamped.toFixed(2)})`;
+    const filterVal = `brightness(${clamped.toFixed(2)})`;
+    el.panelRoot.style.filter = filterVal;
+    el.screensaverOverlay.style.filter = filterVal;
+  }
+
+  function renderScreensaverData() {
+    const d = state.data;
+    if (!d) return;
+    const ac = d.appliances && d.appliances.AC;
+    if (ac && ac.actual != null) {
+      el.ssTemp.textContent = `${cToF(ac.actual).toFixed(1)}°`;
+    } else {
+      el.ssTemp.textContent = '--.-°';
+    }
+
+    const withCo2 = (d.rooms || []).filter(r => r.co2 != null);
+    el.ssAirDot.className = 'ss-air-dot';
+    if (withCo2.length > 0) {
+      const maxPpm = Math.max(...withCo2.map(r => r.co2));
+      if (maxPpm < 800) {
+        el.ssAirDot.classList.add('air-good');
+      } else if (maxPpm <= 1200) {
+        el.ssAirDot.classList.add('air-fair');
+      } else {
+        el.ssAirDot.classList.add('air-poor');
+      }
+    }
+  }
+
+  function positionScreensaverWidget(instant = false) {
+    const pad = 24;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const ww = el.ssWidget.offsetWidth || Math.round(vw * 0.45);
+    const wh = el.ssWidget.offsetHeight || Math.round(vh * 0.45);
+    const maxX = Math.max(pad, vw - ww - pad);
+    const maxY = Math.max(pad, vh - wh - pad);
+
+    let nextX = pad + Math.random() * Math.max(0, maxX - pad);
+    let nextY = pad + Math.random() * Math.max(0, maxY - pad);
+    // Try to pick a meaningfully different spot from the previous position
+    if (state.ssPos.x != null) {
+      for (let i = 0; i < 6; i++) {
+        const cx = pad + Math.random() * Math.max(0, maxX - pad);
+        const cy = pad + Math.random() * Math.max(0, maxY - pad);
+        const dist = Math.hypot(cx - state.ssPos.x, cy - state.ssPos.y);
+        if (dist > Math.min(vw, vh) * 0.25) {
+          nextX = cx;
+          nextY = cy;
+          break;
+        }
+      }
+    }
+    state.ssPos = { x: nextX, y: nextY };
+
+    if (instant) {
+      el.ssWidget.style.left = `${Math.round(nextX)}px`;
+      el.ssWidget.style.top = `${Math.round(nextY)}px`;
+      el.ssWidget.classList.remove('fading');
+      return;
+    }
+
+    el.ssWidget.classList.add('fading');
+    setTimeout(() => {
+      if (!state.screensaverActive) return;
+      el.ssWidget.style.left = `${Math.round(nextX)}px`;
+      el.ssWidget.style.top = `${Math.round(nextY)}px`;
+      el.ssWidget.classList.remove('fading');
+    }, 450);
+  }
+
+  function setScreensaver(active) {
+    if (state.screensaverActive === active) return;
+    state.screensaverActive = active;
+    clearInterval(state.screensaverMoveTimer);
+    state.screensaverMoveTimer = null;
+
+    if (active) {
+      renderScreensaverData();
+      el.screensaverOverlay.classList.remove('hidden');
+      requestAnimationFrame(() => positionScreensaverWidget(true));
+      state.screensaverMoveTimer = setInterval(() => positionScreensaverWidget(false), SCREENSAVER_MOVE_MS);
+    } else {
+      el.screensaverOverlay.classList.add('hidden');
+    }
   }
 
   async function pollUiBrightness() {
@@ -458,11 +551,11 @@
         if (typeof b.activeUiBrightness === 'number') {
           state.activeUiBrightness = b.activeUiBrightness;
         }
-        if (Date.now() < state.localWakeUntil) {
-          applyUiBrightness(state.activeUiBrightness);
-        } else if (typeof b.uiBrightness === 'number') {
-          applyUiBrightness(b.uiBrightness);
-        }
+        const wakeHold = Date.now() < state.localWakeUntil;
+        const shouldShowScreensaver = Boolean(b.screensaver) && !wakeHold;
+        setScreensaver(shouldShowScreensaver);
+        // Normal lux-matched brightness on both active UI and OLED ambient screensaver
+        applyUiBrightness(state.activeUiBrightness);
       }
     } catch (_) {
       // Keep current brightness on transient network hiccup
@@ -471,13 +564,14 @@
     }
   }
 
-  function notifyTouchWake() {
+  function notifyTouchWake(force = false) {
     const now = Date.now();
-    // Instant local fade-up while Node-RED syncs the 60s hold
-    state.localWakeUntil = now + 3000;
+    // Instant local wake while Node-RED syncs the 60s hold
+    state.localWakeUntil = now + 3500;
+    setScreensaver(false);
     applyUiBrightness(state.activeUiBrightness);
 
-    if (now - state.lastWakeSentAt < WAKE_THROTTLE_MS) {
+    if (!force && now - state.lastWakeSentAt < WAKE_THROTTLE_MS) {
       return;
     }
     state.lastWakeSentAt = now;
@@ -489,7 +583,17 @@
   }
 
   // Event Listeners
-  document.addEventListener('pointerdown', notifyTouchWake, { passive: true });
+  el.screensaverOverlay.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    notifyTouchWake(true);
+  });
+  document.addEventListener('pointerdown', () => notifyTouchWake(false), { passive: true });
+  window.addEventListener('resize', () => {
+    if (state.screensaverActive) {
+      positionScreensaverWidget(true);
+    }
+  });
   el.tabControlsBtn.addEventListener('click', () => setActiveTab('controls'));
   el.tabChartsBtn.addEventListener('click', () => setActiveTab('charts'));
 
