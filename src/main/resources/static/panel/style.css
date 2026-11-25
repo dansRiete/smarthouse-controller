@@ -772,7 +772,7 @@ html, body {
 }
 
 .ss-temp {
-  font-size: clamp(4.2rem, 26vh, 8.5rem);
+  font-size: clamp(6.3rem, 39vh, 12.8rem);
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -780,8 +780,8 @@ html, body {
 }
 
 .ss-air-dot {
-  width: clamp(28px, 9vh, 52px);
-  height: clamp(28px, 9vh, 52px);
+  width: clamp(4.6rem, 28vh, 9.2rem);
+  height: clamp(4.6rem, 28vh, 9.2rem);
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--text-muted);
