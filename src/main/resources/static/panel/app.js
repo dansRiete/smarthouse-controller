@@ -7,6 +7,7 @@
   const REQUESTER_ID = 'wall-panel';
   const GRAFANA_PORT = 30300;
   const NODE_RED_PORT = 31880;
+  const BRIGHTNESS_POLL_MS = 1500;
   const WAKE_THROTTLE_MS = 10000;
   const CELSIUS_REVERT_MS = 10000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
@@ -24,6 +25,9 @@
     pendingAcSettingC: null,
     acDebounceTimer: null,
     lastWakeSentAt: 0,
+    uiBrightness: 0.72,
+    activeUiBrightness: 0.72,
+    localWakeUntil: 0,
     busy: false
   };
 
@@ -439,8 +443,40 @@
     renderCharts();
   }
 
+  function applyUiBrightness(level) {
+    const clamped = Math.max(0.05, Math.min(1.0, Number(level) || 0.72));
+    state.uiBrightness = clamped;
+    el.panelRoot.style.filter = `brightness(${clamped.toFixed(2)})`;
+  }
+
+  async function pollUiBrightness() {
+    try {
+      const host = window.location.hostname || '192.168.0.201';
+      const resp = await fetch(`http://${host}:${NODE_RED_PORT}/api/panel/brightness`, { cache: 'no-store' });
+      if (resp.ok) {
+        const b = await resp.json();
+        if (typeof b.activeUiBrightness === 'number') {
+          state.activeUiBrightness = b.activeUiBrightness;
+        }
+        if (Date.now() < state.localWakeUntil) {
+          applyUiBrightness(state.activeUiBrightness);
+        } else if (typeof b.uiBrightness === 'number') {
+          applyUiBrightness(b.uiBrightness);
+        }
+      }
+    } catch (_) {
+      // Keep current brightness on transient network hiccup
+    } finally {
+      setTimeout(pollUiBrightness, BRIGHTNESS_POLL_MS);
+    }
+  }
+
   function notifyTouchWake() {
     const now = Date.now();
+    // Instant local fade-up while Node-RED syncs the 60s hold
+    state.localWakeUntil = now + 3000;
+    applyUiBrightness(state.activeUiBrightness);
+
     if (now - state.lastWakeSentAt < WAKE_THROTTLE_MS) {
       return;
     }
@@ -551,4 +587,5 @@
   setInterval(updateClock, 15000);
   setInterval(applyPixelShift, PIXEL_SHIFT_MS);
   fetchState();
+  pollUiBrightness();
 })();

@@ -52,7 +52,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 1.2s ease;
+  transition: transform 1.2s ease, filter 0.8s ease;
 }
 
 /* Top Bar */
