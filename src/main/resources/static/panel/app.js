@@ -224,10 +224,9 @@
 
     el.unitToggleBtn.textContent = tempUnit();
 
-    // Outdoor badge: OUT 26.5°C (80°F) · 75% (11mg/m³)
+    // Outdoor badge: OUT 24.3°C · 80% (18mg/m³)
     if (d.outdoor && d.outdoor.temp != null) {
       const cStr = d.outdoor.temp.toFixed(1);
-      const fStr = Math.round(cToF(d.outdoor.temp));
       let humPart = '';
       if (d.outdoor.rh != null) {
         humPart = ` · ${Math.round(d.outdoor.rh)}%`;
@@ -237,7 +236,7 @@
       } else if (d.outdoor.ah != null) {
         humPart = ` · ${Math.round(d.outdoor.ah)}mg/m³`;
       }
-      el.outdoorBadge.textContent = `OUT ${cStr}°C (${fStr}°F)${humPart}`;
+      el.outdoorBadge.textContent = `OUT ${cStr}°C${humPart}`;
       el.outdoorBadge.classList.remove('hidden');
     } else {
       el.outdoorBadge.classList.add('hidden');
@@ -466,9 +465,9 @@
     if (!d) return;
     const ac = d.appliances && d.appliances.AC;
     if (ac && ac.actual != null) {
-      el.ssTemp.textContent = `${cToF(ac.actual).toFixed(1)}°`;
+      el.ssTemp.textContent = cToF(ac.actual).toFixed(1);
     } else {
-      el.ssTemp.textContent = '--.-°';
+      el.ssTemp.textContent = '--.-';
     }
 
     const withCo2 = (d.rooms || []).filter(r => r.co2 != null);

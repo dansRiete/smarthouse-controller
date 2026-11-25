@@ -259,20 +259,6 @@ html, body {
     gap: 6px;
   }
   .topbar { min-height: 32px; }
-  .main-grid, .right-col { gap: 8px; }
-  .card { padding: 10px 13px; border-radius: 16px; }
-  .temp-hero { font-size: clamp(2.8rem, 15vh, 4.2rem); }
-  .target-strip { margin-top: 3px; font-size: 0.88rem; }
-  .step-btn, .power-btn { height: clamp(40px, 12vh, 52px); border-radius: 13px; }
-  .step-btn-sm, .power-btn-sm { height: clamp(34px, 10vh, 44px); border-radius: 11px; font-size: 0.78rem; }
-  .step-btn-sm { font-size: 1.4rem; }
-  .room-mini { padding: 5px 9px; font-size: 0.8rem; }
-  .co2-list { margin-top: 6px; gap: 10px; }
-  .co2-value { font-size: clamp(1.3rem, 5.5vh, 1.8rem); }
-  .co2-room-name { font-size: 0.8rem; }
-  .metric-big { font-size: clamp(1.6rem, 7vh, 2.3rem); }
-  .metric-sub { font-size: 0.76rem; }
-  .deh-metrics { margin: 2px 0; }
 }
 
 /* Main Grid — Landscape Default (Pixel 6 Pro horizontal) */
@@ -404,17 +390,17 @@ html, body {
 }
 
 .temp-hero {
-  font-size: clamp(3.6rem, 11vh, 5.8rem);
+  font-size: clamp(5.2rem, min(28vh, 22vw), 9.5rem);
   font-weight: 600;
   letter-spacing: -0.04em;
 }
 
 .temp-hero-unit {
-  font-size: clamp(1.3rem, 3.2vh, 2rem);
+  font-size: clamp(1.9rem, min(7.2vh, 6vw), 3.2rem);
   font-weight: 500;
   color: var(--text-dim);
-  margin-top: 0.45rem;
-  margin-left: 3px;
+  margin-top: 0.65rem;
+  margin-left: 4px;
 }
 
 .target-strip {
@@ -652,13 +638,15 @@ html, body {
 }
 
 .metric-big {
-  font-size: clamp(2rem, 6vh, 3rem);
+  font-size: clamp(3.2rem, min(15.6vh, 14vw), 5.2rem);
   font-weight: 600;
   letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .metric-unit {
-  font-size: 0.85rem;
+  font-size: clamp(1.25rem, min(4.2vh, 4vw), 1.9rem);
+  font-weight: 500;
   color: var(--text-dim);
 }
 
