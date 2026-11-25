@@ -10,7 +10,7 @@
   const BRIGHTNESS_POLL_MS = 1500;
   const WAKE_THROTTLE_MS = 10000;
   const CELSIUS_REVERT_MS = 10000;
-  const SCREENSAVER_MOVE_MS = 60 * 1000;
+  const SCREENSAVER_MOVE_MS = 5 * 60 * 1000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
 
   const state = {
@@ -331,10 +331,11 @@
   }
 
   function co2Level(ppm) {
-    if (ppm == null) return { cls: 'co2-good', bar: 'co2-bar-good', pill: 'status-idle', label: '--' };
-    if (ppm < 800) return { cls: 'co2-good', bar: 'co2-bar-good', pill: 'status-good', label: 'GOOD' };
-    if (ppm <= 1200) return { cls: 'co2-fair', bar: 'co2-bar-fair', pill: 'status-fair', label: 'MODERATE' };
-    return { cls: 'co2-poor', bar: 'co2-bar-poor', pill: 'status-poor', label: 'VENTILATE' };
+    if (ppm == null) return { cls: 'co2-good', bar: 'co2-bar-good', pill: 'status-idle', air: null, label: '--' };
+    if (ppm < 800) return { cls: 'co2-good', bar: 'co2-bar-good', pill: 'status-good', air: 'air-good', label: 'GOOD' };
+    if (ppm <= 1200) return { cls: 'co2-fair', bar: 'co2-bar-fair', pill: 'status-fair', air: 'air-fair', label: 'MODERATE' };
+    if (ppm <= 1600) return { cls: 'co2-poor', bar: 'co2-bar-poor', pill: 'status-poor', air: 'air-poor', label: 'VENTILATE' };
+    return { cls: 'co2-severe', bar: 'co2-bar-severe', pill: 'status-severe', air: 'air-severe', label: 'SEVERE' };
   }
 
   function renderCo2(rooms) {
@@ -353,7 +354,7 @@
 
     el.co2List.innerHTML = withCo2.map(r => {
       const lvl = co2Level(r.co2);
-      const pct = Math.max(4, Math.min(100, ((r.co2 - 400) / 1200) * 100));
+      const pct = Math.max(4, Math.min(100, ((r.co2 - 400) / 1500) * 100));
       return `
         <div class="co2-row${r.co2Stale ? ' stale' : ''}">
           <div class="co2-row-top">
@@ -474,12 +475,9 @@
     el.ssAirDot.className = 'ss-air-dot';
     if (withCo2.length > 0) {
       const maxPpm = Math.max(...withCo2.map(r => r.co2));
-      if (maxPpm < 800) {
-        el.ssAirDot.classList.add('air-good');
-      } else if (maxPpm <= 1200) {
-        el.ssAirDot.classList.add('air-fair');
-      } else {
-        el.ssAirDot.classList.add('air-poor');
+      const lvl = co2Level(maxPpm);
+      if (lvl.air) {
+        el.ssAirDot.classList.add(lvl.air);
       }
     }
   }

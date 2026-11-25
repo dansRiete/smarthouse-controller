@@ -20,6 +20,9 @@
   --red: #ef4444;
   --red-bg: rgba(239, 68, 68, 0.18);
 
+  --violet: #a855f7;
+  --violet-bg: rgba(168, 85, 247, 0.20);
+
   --radius: 20px;
 }
 
@@ -362,6 +365,7 @@ html, body {
 .status-good { background: var(--green-bg); color: var(--green); }
 .status-fair { background: var(--amber-bg); color: var(--amber); }
 .status-poor { background: var(--red-bg); color: var(--red); }
+.status-severe { background: var(--violet-bg); color: var(--violet); }
 
 .pill-btn {
   background: var(--surface-elev);
@@ -606,10 +610,12 @@ html, body {
 .co2-good { color: var(--green); }
 .co2-fair { color: var(--amber); }
 .co2-poor { color: var(--red); }
+.co2-severe { color: var(--violet); }
 
 .co2-bar-good { background: var(--green); }
 .co2-bar-fair { background: var(--amber); }
 .co2-bar-poor { background: var(--red); }
+.co2-bar-severe { background: var(--violet); }
 
 .co2-empty {
   color: var(--text-muted);
@@ -802,6 +808,11 @@ html, body {
 .ss-air-dot.air-poor {
   background: var(--red);
   box-shadow: 0 0 28px rgba(239, 68, 68, 0.65);
+}
+
+.ss-air-dot.air-severe {
+  background: var(--violet);
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.75);
 }
 
 /* Toast */
