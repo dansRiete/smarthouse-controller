@@ -8,6 +8,7 @@
   const GRAFANA_PORT = 30300;
   const NODE_RED_PORT = 31880;
   const WAKE_THROTTLE_MS = 10000;
+  const CELSIUS_REVERT_MS = 10000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
 
   const state = {
@@ -15,7 +16,8 @@
     activeTab: 'controls',
     chartMode: localStorage.getItem('panel.chartMode') || 'all',
     chartRange: localStorage.getItem('panel.chartRange') || '6h',
-    useFahrenheit: localStorage.getItem('panel.useFahrenheit') !== 'false',
+    useFahrenheit: true,
+    unitRevertTimer: null,
     backoffMs: POLL_MS,
     pollTimer: null,
     lockTargetCode: null,
@@ -188,7 +190,19 @@
         await patchAppliance('AC', { setting: toSend });
       }, 280);
     } else {
+      scheduleFahrenheitRevert();
       patchAppliance('AC', { setting: direction });
+    }
+  }
+
+  function scheduleFahrenheitRevert() {
+    clearTimeout(state.unitRevertTimer);
+    if (!state.useFahrenheit) {
+      state.unitRevertTimer = setTimeout(() => {
+        state.useFahrenheit = true;
+        state.unitRevertTimer = null;
+        render();
+      }, CELSIUS_REVERT_MS);
     }
   }
 
@@ -198,10 +212,20 @@
 
     el.unitToggleBtn.textContent = tempUnit();
 
-    // Outdoor badge
+    // Outdoor badge: OUT 26.5°C (80°F) · 75% (11mg/m³)
     if (d.outdoor && d.outdoor.temp != null) {
-      const rhPart = d.outdoor.rh != null ? ` · ${Math.round(d.outdoor.rh)}%` : '';
-      el.outdoorBadge.textContent = `OUT ${formatTemp(d.outdoor.temp, 0)}${tempUnit()}${rhPart}`;
+      const cStr = d.outdoor.temp.toFixed(1);
+      const fStr = Math.round(cToF(d.outdoor.temp));
+      let humPart = '';
+      if (d.outdoor.rh != null) {
+        humPart = ` · ${Math.round(d.outdoor.rh)}%`;
+        if (d.outdoor.ah != null) {
+          humPart += ` (${Math.round(d.outdoor.ah)}mg/m³)`;
+        }
+      } else if (d.outdoor.ah != null) {
+        humPart = ` · ${Math.round(d.outdoor.ah)}mg/m³`;
+      }
+      el.outdoorBadge.textContent = `OUT ${cStr}°C (${fStr}°F)${humPart}`;
       el.outdoorBadge.classList.remove('hidden');
     } else {
       el.outdoorBadge.classList.add('hidden');
@@ -249,8 +273,8 @@
       el.dehCard.classList.toggle('alert-active', Boolean(d.dehBucketFullSuspected));
       el.dehBucketAlert.classList.toggle('hidden', !d.dehBucketFullSuspected);
 
-      el.dehActualAh.textContent = deh.actual != null ? deh.actual.toFixed(1) : '--.-';
-      el.dehActualRh.textContent = deh.actualRh != null ? `${Math.round(deh.actualRh)}%` : '--%';
+      el.dehActualRh.textContent = deh.actualRh != null ? `${Math.round(deh.actualRh)}` : '--';
+      el.dehActualAh.textContent = deh.actual != null ? `${deh.actual.toFixed(1)} mg/m³` : '--.- mg/m³';
       el.dehSetValue.textContent = deh.setting != null ? deh.setting.toFixed(2) : '--';
       el.dehTargetDir.textContent = isOn ? 'OFF' : 'ON';
       el.dehTargetValue.textContent = deh.target != null ? deh.target.toFixed(2) : '--';
@@ -453,7 +477,7 @@
 
   el.unitToggleBtn.addEventListener('click', () => {
     state.useFahrenheit = !state.useFahrenheit;
-    localStorage.setItem('panel.useFahrenheit', String(state.useFahrenheit));
+    scheduleFahrenheitRevert();
     render();
   });
 

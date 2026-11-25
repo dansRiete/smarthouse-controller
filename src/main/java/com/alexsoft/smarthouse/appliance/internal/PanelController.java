@@ -3,6 +3,7 @@ package com.alexsoft.smarthouse.appliance.internal;
 import com.alexsoft.smarthouse.appliance.Appliance;
 import com.alexsoft.smarthouse.appliance.ApplianceService;
 import com.alexsoft.smarthouse.appliance.ApplianceState;
+import com.alexsoft.smarthouse.core.util.TempUtils;
 import com.alexsoft.smarthouse.environment.IndicationServiceV3;
 import com.alexsoft.smarthouse.environment.IndicationV3;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class PanelController {
 
     private final ApplianceService applianceService;
     private final IndicationServiceV3 indicationServiceV3;
+    private final TempUtils tempUtils = new TempUtils();
 
     @GetMapping("/state")
     public ResponseEntity<PanelStateResponse> getPanelState() {
@@ -160,10 +162,18 @@ public class PanelController {
             Optional<IndicationV3> temp = indicationServiceV3.findLatestRecent(loc, "temp", cutoff);
             if (temp.isPresent() && temp.get().getUtcTime() != null && !temp.get().getUtcTime().isBefore(cutoff)) {
                 Optional<IndicationV3> rh = indicationServiceV3.findLatestRecent(loc, "rh", cutoff);
+                Optional<IndicationV3> ah = indicationServiceV3.findLatestRecent(loc, "ah", cutoff);
+                Double tempVal = temp.get().getValue();
+                Double rhVal = rh.map(IndicationV3::getValue).orElse(null);
+                Double ahVal = ah.map(IndicationV3::getValue).orElse(null);
+                if (ahVal == null && tempVal != null && rhVal != null) {
+                    ahVal = tempUtils.calculateAbsoluteHumidity(tempVal.floatValue(), (int) Math.round(rhVal)).doubleValue();
+                }
                 return new OutdoorReadingView(
                         loc,
-                        temp.get().getValue(),
-                        rh.map(IndicationV3::getValue).orElse(null),
+                        tempVal,
+                        rhVal,
+                        ahVal,
                         temp.get().getUtcTime()
                 );
             }
@@ -275,6 +285,7 @@ public class PanelController {
             String locationId,
             Double temp,
             Double rh,
+            Double ah,
             LocalDateTime updatedAtUtc
     ) {
     }

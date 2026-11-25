@@ -83,6 +83,10 @@ class PanelControllerTest {
         .thenReturn(Optional.of(reading("BEDROOM", "co2", 1120.0, NOW.minusMinutes(20))));
     when(indicationServiceV3.findLatestRecent(eq("FORT-LAUDERDALE"), eq("temp"), any()))
         .thenReturn(Optional.of(reading("FORT-LAUDERDALE", "temp", 27.0, NOW.minusMinutes(15))));
+    when(indicationServiceV3.findLatestRecent(eq("FORT-LAUDERDALE"), eq("rh"), any()))
+        .thenReturn(Optional.of(reading("FORT-LAUDERDALE", "rh", 70.0, NOW.minusMinutes(15))));
+    when(indicationServiceV3.findLatestRecent(eq("FORT-LAUDERDALE"), eq("ah"), any()))
+        .thenReturn(Optional.of(reading("FORT-LAUDERDALE", "ah", 18.1, NOW.minusMinutes(15))));
     when(indicationServiceV3.findLatestRecent(eq("lr-sp-dehumidifier"), eq("power"), any()))
         .thenReturn(Optional.of(reading("lr-sp-dehumidifier", "power", 410.0, NOW.minusSeconds(30))));
 
@@ -109,6 +113,8 @@ class PanelControllerTest {
     assertThat(state.outdoor(), is(notNullValue()));
     assertThat(state.outdoor().locationId(), is("FORT-LAUDERDALE"));
     assertThat(state.outdoor().temp(), is(27.0));
+    assertThat(state.outdoor().rh(), is(70.0));
+    assertThat(state.outdoor().ah(), is(18.1));
 
     assertThat(state.dehPowerWatts(), is(410.0));
     assertThat(state.dehBucketFullSuspected(), is(false));
