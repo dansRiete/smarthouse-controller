@@ -552,11 +552,13 @@
         if (typeof b.activeUiBrightness === 'number') {
           state.activeUiBrightness = b.activeUiBrightness;
         }
+        const ssBrightness = typeof b.screensaverBrightness === 'number'
+          ? b.screensaverBrightness
+          : Math.min(state.activeUiBrightness, 0.50);
         const wakeHold = Date.now() < state.localWakeUntil;
         const shouldShowScreensaver = Boolean(b.screensaver) && !wakeHold;
         setScreensaver(shouldShowScreensaver);
-        // Normal lux-matched brightness on both active UI and OLED ambient screensaver
-        applyUiBrightness(state.activeUiBrightness);
+        applyUiBrightness(shouldShowScreensaver ? ssBrightness : state.activeUiBrightness);
       }
     } catch (_) {
       // Keep current brightness on transient network hiccup
