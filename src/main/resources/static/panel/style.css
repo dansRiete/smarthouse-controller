@@ -55,7 +55,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 1.2s ease, filter 0.8s ease;
+  transition: transform 1.2s ease, filter 2s ease;
 }
 
 /* Top Bar */
@@ -748,7 +748,7 @@ html, body {
   z-index: 45;
   overflow: hidden;
   cursor: pointer;
-  transition: filter 0.8s ease;
+  transition: filter 2s ease;
 }
 
 .ss-widget {

@@ -8,7 +8,7 @@
   const GRAFANA_PORT = 30300;
   const NODE_RED_PORT = 31880;
   const BRIGHTNESS_POLL_MS = 1500;
-  const WAKE_THROTTLE_MS = 10000;
+  const WAKE_THROTTLE_MS = 3000;
   const CELSIUS_REVERT_MS = 10000;
   const SCREENSAVER_MOVE_MS = 5 * 60 * 1000;
   const GRAFANA_DASHBOARD_PATH = '/d-solo/smarthouse-1809-jackson-st/1809-jackson-st-hollywood-fl';
@@ -530,6 +530,10 @@
     state.screensaverMoveTimer = null;
 
     if (active) {
+      closeLockModal();
+      if (state.activeTab !== 'controls') {
+        setActiveTab('controls');
+      }
       renderScreensaverData();
       el.screensaverOverlay.classList.remove('hidden');
       requestAnimationFrame(() => positionScreensaverWidget(true));
